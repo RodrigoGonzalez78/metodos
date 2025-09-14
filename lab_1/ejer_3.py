@@ -15,13 +15,13 @@ def fibonacci(n):
     return fib
 
 
-# Ejemplo de uso
 if __name__ == "__main__":
-    # Probar con N = 200
-    N = 200
-    fib200 = fibonacci(N)
-    print(f"Los {N} primeros números de Fibonacci son:")
-    print(fib200)
+    try:
+        N = int(input("Ingrese la cantidad de términos de Fibonacci a generar: "))
+        fib_n = fibonacci(N)
+        print(f"Los {N} primeros números de Fibonacci son:")
+        print(fib_n)
 
-    # Verificar longitud
-    print(f"Cantidad generada: {len(fib200)}")
+        print(f"Cantidad generada: {len(fib_n)}")
+    except ValueError:
+        print("Por favor, ingrese un número entero válido.")

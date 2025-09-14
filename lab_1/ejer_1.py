@@ -30,7 +30,6 @@ def sumar_ingresados(N):
     return numeros, sumar_vector(numeros)
 
 
-# Ejemplo de uso:
 if __name__ == "__main__":
     numeros, resultado = sumar_numeros_aleatorios(20)
     print("Números generados:", numeros)
