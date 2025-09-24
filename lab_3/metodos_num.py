@@ -3,7 +3,7 @@
 Métodos numéricos reutilizables:
 - bisection (Intervalo Medio)
 - regula_falsi (Interpolación lineal / Falsa posición)
-- newton_raphson (con sympy para derivadas)
+- metodo_newton_raphson (con sympy para derivadas)
 - fixed_point_iteration (opcional Aitken)
 Cada función devuelve (root, iterations, history, elapsed_time).
 """
@@ -57,31 +57,33 @@ def regula_falsi(f, a, b, tol=1e-3, maxiter=100):
     return x2, maxiter, history, time.time()-t0
 
 
-def newton_raphson(sympy_expr, sympy_var, x0, tol=1e-3, maxiter=100):
-    """
-    sympy_expr: expresión simbólica
-    sympy_var: símbolo (p.ej. x)
-    x0: inicio
-    """
-    t0 = time.time()
-    f = lambdify(sympy_var, sympy_expr, 'numpy')
-    fprime = lambdify(sympy_var, sympy_expr.diff(sympy_var), 'numpy')
-    f2 = lambdify(sympy_var, sympy_expr.diff(sympy_var, 2), 'numpy')
-    xi = float(x0)
-    history = []
-    for i in range(1, maxiter+1):
-        fx = float(f(xi))
-        fpx = float(fprime(xi))
-        history.append((i, xi, fx, fpx))
-        if abs(fx) < tol:
-            return xi, i, history, time.time()-t0
-        if fpx == 0 or not isfinite(fpx):
-            raise ZeroDivisionError("Derivada nula o no finita en iteración.")
-        xi1 = xi - fx / fpx
-        if abs(xi1 - xi) < tol:
-            return xi1, i, history, time.time()-t0
-        xi = xi1
-    return xi, maxiter, history, time.time()-t0
+def metodo_newton_raphson(expresion_simbolica, variable, valor_inicial, tolerancia=1e-3, maximo_iteraciones=100):
+    inicio_tiempo = time.time()
+    funcion = lambdify(variable, expresion_simbolica, 'numpy')
+    derivada = lambdify(variable, expresion_simbolica.diff(variable), 'numpy')
+    valor_actual = float(valor_inicial)
+    historial = []
+
+    for numero_iteracion in range(1, maximo_iteraciones + 1):
+        valor_funcion = float(funcion(valor_actual))
+        valor_derivada = float(derivada(valor_actual))
+        historial.append((numero_iteracion, valor_actual,
+                         valor_funcion, valor_derivada))
+
+        if abs(valor_funcion) < tolerancia:
+            return valor_actual, numero_iteracion, historial, time.time() - inicio_tiempo
+
+        if valor_derivada == 0:
+            raise ZeroDivisionError("La derivada es cero en el punto actual.")
+
+        nuevo_valor = valor_actual - valor_funcion / valor_derivada
+
+        if abs(nuevo_valor - valor_actual) < tolerancia:
+            return nuevo_valor, numero_iteracion, historial, time.time() - inicio_tiempo
+
+        valor_actual = nuevo_valor
+
+    return valor_actual, maximo_iteraciones, historial, time.time() - inicio_tiempo
 
 
 def check_fourier_like_conditions(sympy_expr, sympy_var, interval):

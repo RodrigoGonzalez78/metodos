@@ -1,6 +1,6 @@
 # ejer_2.py
 from sympy import symbols, sympify
-from metodos_num import newton_raphson, check_fourier_like_conditions
+from metodos_num import metodo_newton_raphson, check_fourier_like_conditions
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -33,7 +33,7 @@ def apply_newton_on_interval(interval, x0_guess, tol=1e-3):
     print(f"Derivada no nula en el intervalo? {conds['fprime_nonzero']}")
     print(
         f"M (estimado) = {conds['M_estimate']:.4g} (ver referencia sobre condiciones de convergencia de Newton).")
-    root, its, hist, elapsed = newton_raphson(
+    root, its, hist, elapsed = metodo_newton_raphson(
         expr, x, x0_guess, tol=tol, maxiter=100)
     print(
         f"Newton-Raphson -> raíz: x = {root:.6f} en {its} iter. (tiempo {elapsed:.4f}s)")
