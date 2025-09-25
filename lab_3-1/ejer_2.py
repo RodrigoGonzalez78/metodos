@@ -9,9 +9,11 @@ def P_derivada(x):
 
 if __name__ == "__main__":
     print("\n=== Raíz en el intervalo [24, 26] ===")
-    raiz1, iter1, hist1 = mnr.metodo_newton_raphson(P, P_derivada, x0=25, tolerancia=1e-3)
+    print("Tomando x0 = 26")
+    raiz1, iter1, hist1 = mnr.metodo_newton_raphson(P, P_derivada, x0=26, tolerancia=1e-3)
 
     print("\n=== Raíz en el intervalo [250, 252] ===")
-    raiz2, iter2, hist2 = mnr.metodo_newton_raphson(P, P_derivada, x0=251, tolerancia=1e-3)
+    print("Tomando x0 = 252")
+    raiz2, iter2, hist2 = mnr.metodo_newton_raphson(P, P_derivada, x0=252, tolerancia=1e-3)
 
     print(f"\n Puntos de equilibrio aproximados: {raiz1:.6f} y {raiz2:.6f}")
