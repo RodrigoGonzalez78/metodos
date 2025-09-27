@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def Metodo_tanteo(func, x_min=-10, x_max=10, paso=0.5):
+def metodo_tanteo(func, x_min=-10, x_max=10, paso=0.5):
     """
     Encuentra intervalos donde se encuentran las raíces de una función usando el método de tanteo.
     
@@ -50,6 +50,11 @@ def Metodo_tanteo(func, x_min=-10, x_max=10, paso=0.5):
     
     return intervalos
 
+
+
+
+
+
 def graficar_funcion_con_intervalos(func, intervalos, x_min=-10, x_max=10):
     """
     Grafica la función y marca los intervalos donde se encuentran las raíces.
@@ -67,7 +72,7 @@ def graficar_funcion_con_intervalos(func, intervalos, x_min=-10, x_max=10):
     plt.axhline(y=0, color='k', linestyle='--', alpha=0.5)
     plt.axvline(x=0, color='k', linestyle='--', alpha=0.5)
     
-    # Marcar los intervalos con raíces
+    
     for i, (a, b) in enumerate(intervalos):
         plt.axvspan(a, b, alpha=0.3, color='red', 
                    label=f'Intervalo {i+1}: [{a:.2f}, {b:.2f}]' if i == 0 else "")
@@ -79,4 +84,4 @@ def graficar_funcion_con_intervalos(func, intervalos, x_min=-10, x_max=10):
     plt.ylabel('f(x)')
     plt.title('Función con intervalos que contienen raíces')
     plt.legend()
-    plt.show()
+    plt.savefig("tanteo.png")
