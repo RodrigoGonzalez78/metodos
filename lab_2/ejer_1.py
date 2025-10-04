@@ -1,36 +1,48 @@
-from math import pi, e
+import math
 
-# valores reales
-true_value = pi / e
+# Valores redondeados a 6 decimales
+pi_aprox = round(math.pi, 6)  # 3.141593
+e_aprox = round(math.e, 6)     # 2.718282
 
-# redondeados a 6 decimales
-pi6 = round(pi, 6)
-print(pi6)
-e6 = round(e, 6)
-print(e6)
-approx_value = pi6 / e6
+# Cociente con valores redondeados
+r_aprox = pi_aprox / e_aprox
 
-print("Valor real:     ", true_value)
-print("Valor aproximado:", approx_value)
+# Valor real con mayor precisión
+r_real = math.pi / math.e
 
+# Error absoluto
+error_abs = abs(r_real - r_aprox)
 
-true_str = f"{true_value:.12f}"
-approx_str = f"{approx_value:.12f}"
+# Error relativo
+error_rel = error_abs / abs(r_real)
 
+# Dígitos significativos correctos
+digitos_significativos = -math.log10(error_rel)
 
-sig = 0
-for t, a in zip(true_str.replace(".", ""), approx_str.replace(".", "")):
-    if t == a:
-        sig += 1
-    else:
-        break
+# Dígitos decimales correctos
+# Comparamos dígito por dígito
+str_real = f"{r_real:.15f}"
+str_aprox = f"{r_aprox:.15f}"
 
-dec = 0
-for t, a in zip(true_str.split(".")[1], approx_str.split(".")[1]):
-    if t == a:
-        dec += 1
-    else:
-        break
+decimales_correctos = 0
+punto_encontrado = False
+for i in range(min(len(str_real), len(str_aprox))):
+    if str_real[i] == '.':
+        punto_encontrado = True
+        continue
+    if punto_encontrado:
+        if str_real[i] == str_aprox[i]:
+            decimales_correctos += 1
+        else:
+            break
 
-print("Dígitos significativos correctos:", sig)
-print("Decimales correctos:", dec)
+# Mostrar resultados
+print(f"π redondeado: {pi_aprox}")
+print(f"e redondeado: {e_aprox}")
+print(f"\nValor real (π/e): {r_real:.15f}")
+print(f"Valor aproximado: {r_aprox:.15f}")
+print(f"\nError absoluto: {error_abs:.2e}")
+print(f"Error relativo: {error_rel:.2e}")
+digitos_sig_entero = int(digitos_significativos)
+print(f"\nDígitos significativos correctos: {digitos_sig_entero:.1f}")
+print(f"Decimales correctos: {decimales_correctos}")
