@@ -1,8 +1,192 @@
 import sympy as sp
-import tanteo
-import metodos as mt
 import numpy as np
 import matplotlib.pyplot as plt
+import time
+
+
+
+def aceleracion_aitken(x0, x1, x2):
+    """
+    Aplica la aceleración de Aitken para mejorar la convergencia
+    
+    Fórmula: x_acelerado = x0 - (x1 - x0)² / (x2 - 2*x1 + x0)
+    """
+    denominador = x2 - 2*x1 + x0
+    
+    # Evitar división por cero
+    if abs(denominador) < 1e-14:  
+        return x2
+    
+    return x0 - (x1 - x0)**2 / denominador
+
+
+def metodo_punto_fijo(func_g, x0, tolerancia=1e-6, max_iter=100, usar_aitken=False):
+    """
+    Método de Iteración de Punto Fijo con opción de Aceleración de Aitken
+    
+    Para resolver f(x) = 0, se reescribe como x = g(x)
+    
+    Parámetros:
+    - func_g: función g(x) tal que x = g(x)
+    - x0: estimación inicial
+    - tolerancia: precisión deseada
+    - max_iter: número máximo de iteraciones
+    - usar_aitken: True para aplicar aceleración de Aitken
+    """
+    tiempo_inicio = time.time()  # Iniciar medición de tiempo
+    
+    historial = []
+    x = x0
+    
+    # Encabezado de la tabla
+    if usar_aitken:
+        print(f"{'Iter':>4} | {'x':>12} | {'g(x)':>12} | {'x_Aitken':>12} | {'Error':>10}")
+        print("-" * 65)
+    else:
+        print(f"{'Iter':>4} | {'x':>12} | {'g(x)':>12} | {'Error':>10}")
+        print("-" * 50)
+    
+    # Variables para Aitken (necesitamos 3 puntos consecutivos)
+    x_prev2, x_prev1 = None, None
+    
+    for i in range(max_iter):
+        gx = func_g(x)
+        
+        # Aplicar Aitken si está habilitado y tenemos suficientes puntos
+        x_aitken = None
+        if usar_aitken and i >= 2:
+            x_aitken = aceleracion_aitken(x_prev2, x_prev1, x)
+            error = abs(x_aitken - x)
+            x_siguiente = x_aitken
+        else:
+            error = abs(gx - x)
+            x_siguiente = gx
+        
+        # Guardar en historial
+        historial.append({
+            'iteracion': i + 1,
+            'x': x,
+            'gx': gx,
+            'x_aitken': x_aitken,
+            'error': error,
+            'x_siguiente': x_siguiente
+        })
+        
+        # Mostrar resultados
+        if usar_aitken and x_aitken is not None:
+            print(f"{i+1:4} | {x:12.8f} | {gx:12.8f} | {x_aitken:12.8f} | {error:10.8f}")
+        elif usar_aitken:
+            print(f"{i+1:4} | {x:12.8f} | {gx:12.8f} | {'N/A':>12} | {error:10.8f}")
+        else:
+            print(f"{i+1:4} | {x:12.8f} | {gx:12.8f} | {error:10.8f}")
+        
+        # Verificar convergencia
+        if error < tolerancia:
+            tiempo_total = time.time() - tiempo_inicio  # Calcular tiempo total
+            print(f"\nConvergencia alcanzada en {i+1} iteraciones")
+            metodo = "Punto Fijo con Aitken" if usar_aitken else "Punto Fijo"
+            print(f"Método usado: {metodo}")
+            print(f"Tiempo de ejecución: {tiempo_total:.6f} segundos")
+            return x_siguiente, i + 1, historial
+        
+        # Actualizar variables para siguiente iteración
+        x_prev2, x_prev1 = x_prev1, x
+        x = x_siguiente
+    
+    tiempo_total = time.time() - tiempo_inicio  # Calcular tiempo total
+    print(f"\nMáximo de iteraciones alcanzado")
+    metodo = "Punto Fijo con Aitken" if usar_aitken else "Punto Fijo"
+    print(f"Método usado: {metodo}")
+    print(f"Tiempo de ejecución: {tiempo_total:.6f} segundos")
+    return x, max_iter, historial
+
+
+
+def metodo_tanteo(func, x_min=-10, x_max=10, paso=0.5):
+    """
+    Encuentra intervalos donde se encuentran las raíces de una función usando el método de tanteo.
+    
+    Parámetros:
+    - func: función matemática a evaluar
+    - x_min: límite inferior del rango de búsqueda
+    - x_max: límite superior del rango de búsqueda 
+    - paso: tamaño del paso para el tanteo
+    
+    Retorna:
+    - Lista de tuplas con los intervalos [a, b] donde hay cambio de signo
+    """
+    intervalos = []
+    x = x_min
+    
+    try:
+        f_anterior = func(x)
+    except:
+        print(f"Error al evaluar la función en x = {x}")
+        return intervalos
+    
+    print(f"{'x':>8} | {'f(x)':>12} | {'Cambio de signo':>15}")
+    print("-" * 40)
+    print(f"{x:8.2f} | {f_anterior:12.4f} |")
+    
+    x += paso
+    
+    while x <= x_max:
+        try:
+            f_actual = func(x)
+            
+            # Verificar cambio de signo (teorema de Bolzano)
+            if f_anterior * f_actual < 0:
+                intervalos.append((x - paso, x))
+                print(f"{x:8.2f} | {f_actual:12.4f} | *** [{x-paso:.2f}, {x:.2f}]")
+            else:
+                print(f"{x:8.2f} | {f_actual:12.4f} |")
+            
+            f_anterior = f_actual
+            x += paso
+            
+        except:
+            print(f"Error al evaluar la función en x = {x}")
+            x += paso
+            continue
+    
+    return intervalos
+
+
+
+
+
+
+def graficar_funcion_con_intervalos(func, intervalos, x_min=-10, x_max=10):
+    """
+    Grafica la función y marca los intervalos donde se encuentran las raíces.
+    """
+    x = np.linspace(x_min, x_max, 1000)
+    
+    try:
+        y = [func(xi) for xi in x]
+    except:
+        print("Error al generar la gráfica")
+        return
+    
+    plt.figure(figsize=(12, 8))
+    plt.plot(x, y, 'b-', linewidth=2, label='f(x)')
+    plt.axhline(y=0, color='k', linestyle='--', alpha=0.5)
+    plt.axvline(x=0, color='k', linestyle='--', alpha=0.5)
+    
+    
+    for i, (a, b) in enumerate(intervalos):
+        plt.axvspan(a, b, alpha=0.3, color='red', 
+                   label=f'Intervalo {i+1}: [{a:.2f}, {b:.2f}]' if i == 0 else "")
+        if i > 0:
+            plt.axvspan(a, b, alpha=0.3, color='red')
+    
+    plt.grid(True, alpha=0.3)
+    plt.xlabel('x')
+    plt.ylabel('f(x)')
+    plt.title('Función con intervalos que contienen raíces')
+    plt.legend()
+    plt.show(block=False)
+
 
 
 def solicitar_parametros():
@@ -157,10 +341,10 @@ def graficar_comparacion_metodos(func_g, func_f, x0, tolerancia, max_iter, inter
     
     # Ejecutar ambos métodos
     print("\n--- Método de Punto Fijo Simple ---")
-    sol_simple, iter_simple, hist_simple = mt.metodo_punto_fijo(func_g, x0, tolerancia, max_iter, usar_aitken=False)
+    sol_simple, iter_simple, hist_simple = metodo_punto_fijo(func_g, x0, tolerancia, max_iter, usar_aitken=False)
     
     print("\n--- Método de Punto Fijo con Aitken ---")
-    sol_aitken, iter_aitken, hist_aitken = mt.metodo_punto_fijo(func_g, x0, tolerancia, max_iter, usar_aitken=True)
+    sol_aitken, iter_aitken, hist_aitken = metodo_punto_fijo(func_g, x0, tolerancia, max_iter, usar_aitken=True)
     
     # Crear gráfico de comparación
     try:
@@ -216,7 +400,7 @@ def graficar_comparacion_metodos(func_g, func_f, x0, tolerancia, max_iter, inter
         ax2.legend()
         
         plt.tight_layout()
-        plt.show()
+        plt.show(block=False)
         
         # Resumen de resultados
         print(f"\n=== RESUMEN DE RESULTADOS ===")
@@ -263,7 +447,7 @@ def main():
     
     # Realizar tanteo
     print(f"\n=== MÉTODO DE TANTEO ===")
-    intervalos = tanteo.metodo_tanteo(f, x_min, x_max, paso)
+    intervalos = metodo_tanteo(f, x_min, x_max, paso)
     
     if not intervalos:
         print("\n⚠ No se encontraron intervalos con cambio de signo.")
@@ -276,7 +460,7 @@ def main():
     # Mostrar gráfica del tanteo
     mostrar_grafico = input("\n¿Desea mostrar la gráfica del tanteo? (s/n, Enter=sí): ").strip().lower()
     if mostrar_grafico in ['', 's', 'si', 'sí', 'y', 'yes']:
-        tanteo.graficar_funcion_con_intervalos(f, intervalos, x_min, x_max)
+        graficar_funcion_con_intervalos(f, intervalos, x_min, x_max)
         print("📊 Gráfico del tanteo mostrado.")
     
     # Aplicar Punto Fijo a cada intervalo
@@ -309,7 +493,7 @@ def main():
                 print(f"Máx. iteraciones = {max_iter}")
                 print()
                 
-                raiz, iteraciones, historial = mt.metodo_punto_fijo(g, x0, tolerancia, max_iter, usar_aitken=False)
+                raiz, iteraciones, historial = metodo_punto_fijo(g, x0, tolerancia, max_iter, usar_aitken=False)
                 
                 # Resultados finales
                 print(f"\n📊 RESULTADOS FINALES:")
@@ -326,3 +510,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    input("Presioná Enter para salir...")

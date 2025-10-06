@@ -1,6 +1,186 @@
 import sympy as sp
-import metodos as mt
-import tanteo as tn
+import time
+import numpy as np
+import matplotlib.pyplot as plt
+
+def metodo_newton_raphson(func, derivada, x0, tolerancia=1e-6, max_iter=100):
+    """
+    Método de Newton-Raphson
+    
+    Parámetros:
+    - func: función a evaluar
+    - derivada: derivada de la función
+    - x0: estimación inicial
+    - tolerancia: precisión deseada
+    - max_iter: número máximo de iteraciones
+    """
+    tiempo_inicio = time.time()  # Iniciar medición de tiempo
+    
+    historial = []
+    x = x0
+    
+    for i in range(max_iter):
+        fx = func(x)
+        fpx = derivada(x)
+        
+        if abs(fpx) < 1e-14:
+            tiempo_total = time.time() - tiempo_inicio
+            print(f"Tiempo de ejecución: {tiempo_total:.6f} segundos")
+            raise ValueError(f"Derivada muy pequeña en x = {x}. El método puede no converger.")
+        
+        x_nuevo = x - fx / fpx
+        error = abs(x_nuevo - x)
+        
+        historial.append({
+            'iteracion': i + 1,
+            'x': x,
+            'fx': fx,
+            'fpx': fpx,
+            'x_nuevo': x_nuevo,
+            'error': error
+        })
+        
+
+        if error < tolerancia or abs(fx) < tolerancia:
+            tiempo_total = time.time() - tiempo_inicio  # Calcular tiempo total
+            print(f"\nConvergencia alcanzada en {i+1} iteraciones")
+            print(f"Tiempo de ejecución: {tiempo_total:.6f} segundos")
+            return x_nuevo, i + 1, historial
+        
+        x = x_nuevo
+    
+    tiempo_total = time.time() - tiempo_inicio  # Calcular tiempo total
+    print(f"\nMáximo de iteraciones alcanzado")
+    print(f"Tiempo de ejecución: {tiempo_total:.6f} segundos")
+    return x, max_iter, historial
+
+
+
+def seleccionar_x0_fourier(func, a, b):
+    """
+    Selecciona x0 basado en la condición de Fourier (menor valor absoluto de f(x))
+    
+    Parámetros:
+    - func: función a evaluar
+    - a: extremo izquierdo del intervalo
+    - b: extremo derecho del intervalo
+    
+    Retorna:
+    - x0: punto inicial seleccionado
+    - fa, fb: valores de la función en los extremos
+    """
+    try:
+        fa = func(a)
+        fb = func(b)
+        
+        print(f"  f({a:.2f}) = {fa:.6f}")
+        print(f"  f({b:.2f}) = {fb:.6f}")
+        
+        # Verificar condición de Bolzano
+        if fa * fb > 0:
+            print(f"  ⚠ No se cumple la condición de Bolzano en [{a:.2f}, {b:.2f}]")
+            return None, fa, fb
+        
+        # Seleccionar x0 según condición de Fourier
+        if abs(fa) < abs(fb):
+            x0 = a
+            print(f"  ✓ Seleccionado x0 = {x0:.2f} (menor |f(x)|)")
+        else:
+            x0 = b
+            print(f"  ✓ Seleccionado x0 = {x0:.2f} (menor |f(x)|)")
+        
+        return x0, fa, fb
+        
+    except Exception as e:
+        print(f"  ⚠ Error al evaluar la función: {e}")
+        return None, None, None
+
+
+def metodo_tanteo(func, x_min=-10, x_max=10, paso=0.5):
+    """
+    Encuentra intervalos donde se encuentran las raíces de una función usando el método de tanteo.
+    
+    Parámetros:
+    - func: función matemática a evaluar
+    - x_min: límite inferior del rango de búsqueda
+    - x_max: límite superior del rango de búsqueda 
+    - paso: tamaño del paso para el tanteo
+    
+    Retorna:
+    - Lista de tuplas con los intervalos [a, b] donde hay cambio de signo
+    """
+    intervalos = []
+    x = x_min
+    
+    try:
+        f_anterior = func(x)
+    except:
+        print(f"Error al evaluar la función en x = {x}")
+        return intervalos
+    
+    print(f"{'x':>8} | {'f(x)':>12} | {'Cambio de signo':>15}")
+    print("-" * 40)
+    print(f"{x:8.2f} | {f_anterior:12.4f} |")
+    
+    x += paso
+    
+    while x <= x_max:
+        try:
+            f_actual = func(x)
+            
+            # Verificar cambio de signo (teorema de Bolzano)
+            if f_anterior * f_actual < 0:
+                intervalos.append((x - paso, x))
+                print(f"{x:8.2f} | {f_actual:12.4f} | *** [{x-paso:.2f}, {x:.2f}]")
+            else:
+                print(f"{x:8.2f} | {f_actual:12.4f} |")
+            
+            f_anterior = f_actual
+            x += paso
+            
+        except:
+            print(f"Error al evaluar la función en x = {x}")
+            x += paso
+            continue
+    
+    return intervalos
+
+
+
+
+
+
+def graficar_funcion_con_intervalos(func, intervalos, x_min=-10, x_max=10):
+    """
+    Grafica la función y marca los intervalos donde se encuentran las raíces.
+    """
+    x = np.linspace(x_min, x_max, 1000)
+    
+    try:
+        y = [func(xi) for xi in x]
+    except:
+        print("Error al generar la gráfica")
+        return
+    
+    plt.figure(figsize=(12, 8))
+    plt.plot(x, y, 'b-', linewidth=2, label='f(x)')
+    plt.axhline(y=0, color='k', linestyle='--', alpha=0.5)
+    plt.axvline(x=0, color='k', linestyle='--', alpha=0.5)
+    
+    
+    for i, (a, b) in enumerate(intervalos):
+        plt.axvspan(a, b, alpha=0.3, color='red', 
+                   label=f'Intervalo {i+1}: [{a:.2f}, {b:.2f}]' if i == 0 else "")
+        if i > 0:
+            plt.axvspan(a, b, alpha=0.3, color='red')
+    
+    plt.grid(True, alpha=0.3)
+    plt.xlabel('x')
+    plt.ylabel('f(x)')
+    plt.title('Función con intervalos que contienen raíces')
+    plt.legend()
+    plt.show(block=False)
+
 
 def solicitar_parametros():
     """Solicita todos los parámetros necesarios al usuario"""
@@ -92,7 +272,7 @@ def main():
     
     # Realizar tanteo
     print(f"\n=== MÉTODO DE TANTEO ===")
-    intervalos = tn.metodo_tanteo(f, x_min, x_max, paso)
+    intervalos = metodo_tanteo(f, x_min, x_max, paso)
     
     if not intervalos:
         print("\n⚠ No se encontraron intervalos con cambio de signo.")
@@ -103,10 +283,10 @@ def main():
         print(f"  Intervalo {i}: [{a:.2f}, {b:.2f}]")
     
     # Mostrar gráfica
-    mostrar_grafico = input("\n¿Desea mostrar la gráfica? (s/n, Enter=sí): ").strip().lower()
+    mostrar_grafico = input("\n¿Desea guardar la gráfica? (s/n, Enter=sí): ").strip().lower()
     if mostrar_grafico in ['', 's', 'si', 'sí', 'y', 'yes']:
-        tn.graficar_funcion_con_intervalos(f, intervalos, x_min, x_max)
-        print("📊 Gráfico mostrado. El programa continuará automáticamente...")
+        graficar_funcion_con_intervalos(f, intervalos, x_min, x_max)
+        print("📊 Gráfico Guardado")
     
     # Aplicar Newton-Raphson a cada intervalo
     print(f"\n=== APLICANDO NEWTON-RAPHSON ===")
@@ -115,7 +295,7 @@ def main():
         print(f"\n--- Intervalo {i}: [{a:.2f}, {b:.2f}] ---")
         
         # Seleccionar x0 usando condición de Fourier
-        x0, fa, fb = mt.seleccionar_x0_fourier(f, a, b)
+        x0, fa, fb = seleccionar_x0_fourier(f, a, b)
         
         if x0 is None:
             print("  Saltando este intervalo...")
@@ -130,7 +310,7 @@ def main():
             print(f"  Máx. iteraciones = {max_iter}")
             print()
             
-            raiz, iteraciones, historial = mt.metodo_newton_raphson(
+            raiz, iteraciones, historial = metodo_newton_raphson(
                 f, f_deriv, 
                 x0=x0, 
                 tolerancia=tolerancia, 
@@ -168,3 +348,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    input("Presioná Enter para salir...")
