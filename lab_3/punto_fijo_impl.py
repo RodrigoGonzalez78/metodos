@@ -33,7 +33,7 @@ def metodo_punto_fijo(func_g, x0, tolerancia=1e-6, max_iter=100, usar_aitken=Fal
     - max_iter: número máximo de iteraciones
     - usar_aitken: True para aplicar aceleración de Aitken
     """
-    tiempo_inicio = time.time()  # Iniciar medición de tiempo
+    tiempo_inicio = time.time()
     
     historial = []
     x = x0
@@ -47,17 +47,28 @@ def metodo_punto_fijo(func_g, x0, tolerancia=1e-6, max_iter=100, usar_aitken=Fal
         print("-" * 50)
     
     # Variables para Aitken (necesitamos 3 puntos consecutivos)
-    x_prev2, x_prev1 = None, None
+    valores_aitken = []  # Almacena x0, x1, x2 para aplicar Aitken
     
     for i in range(max_iter):
         gx = func_g(x)
         
-        # Aplicar Aitken si está habilitado y tenemos suficientes puntos
+        # Aplicar Aitken solo cada 3 iteraciones
         x_aitken = None
-        if usar_aitken and i >= 2:
-            x_aitken = aceleracion_aitken(x_prev2, x_prev1, x)
-            error = abs(x_aitken - x)
-            x_siguiente = x_aitken
+        aplicar_aitken = False
+        
+        if usar_aitken:
+            valores_aitken.append(x)
+            
+            # Aplicar Aitken cuando tengamos 3 valores consecutivos
+            if len(valores_aitken) == 3:
+                x_aitken = aceleracion_aitken(valores_aitken[0], valores_aitken[1], valores_aitken[2])
+                aplicar_aitken = True
+                error = abs(x_aitken - x)
+                x_siguiente = x_aitken
+                valores_aitken = []  # Reiniciar para próxima aplicación de Aitken
+            else:
+                error = abs(gx - x)
+                x_siguiente = gx
         else:
             error = abs(gx - x)
             x_siguiente = gx
@@ -73,7 +84,7 @@ def metodo_punto_fijo(func_g, x0, tolerancia=1e-6, max_iter=100, usar_aitken=Fal
         })
         
         # Mostrar resultados
-        if usar_aitken and x_aitken is not None:
+        if usar_aitken and aplicar_aitken:
             print(f"{i+1:4} | {x:12.8f} | {gx:12.8f} | {x_aitken:12.8f} | {error:10.8f}")
         elif usar_aitken:
             print(f"{i+1:4} | {x:12.8f} | {gx:12.8f} | {'N/A':>12} | {error:10.8f}")
@@ -82,24 +93,22 @@ def metodo_punto_fijo(func_g, x0, tolerancia=1e-6, max_iter=100, usar_aitken=Fal
         
         # Verificar convergencia
         if error < tolerancia:
-            tiempo_total = time.time() - tiempo_inicio  # Calcular tiempo total
+            tiempo_total = time.time() - tiempo_inicio
             print(f"\nConvergencia alcanzada en {i+1} iteraciones")
             metodo = "Punto Fijo con Aitken" if usar_aitken else "Punto Fijo"
             print(f"Método usado: {metodo}")
             print(f"Tiempo de ejecución: {tiempo_total:.6f} segundos")
             return x_siguiente, i + 1, historial
         
-        # Actualizar variables para siguiente iteración
-        x_prev2, x_prev1 = x_prev1, x
+        # Actualizar x para siguiente iteración
         x = x_siguiente
     
-    tiempo_total = time.time() - tiempo_inicio  # Calcular tiempo total
+    tiempo_total = time.time() - tiempo_inicio
     print(f"\nMáximo de iteraciones alcanzado")
     metodo = "Punto Fijo con Aitken" if usar_aitken else "Punto Fijo"
     print(f"Método usado: {metodo}")
     print(f"Tiempo de ejecución: {tiempo_total:.6f} segundos")
     return x, max_iter, historial
-
 
 
 def metodo_tanteo(func, x_min=-10, x_max=10, paso=0.5):
