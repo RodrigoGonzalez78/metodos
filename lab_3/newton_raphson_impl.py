@@ -18,6 +18,11 @@ def metodo_newton_raphson(func, derivada, x0, tolerancia=1e-6, max_iter=100):
     historial = []               # Guarda el progreso de las iteraciones
     x = x0
     
+    # Imprimir encabezado de la tabla
+    print("\n" + "="*90)
+    print(f"{'Iteración':<10} {'x':<15} {'f(x)':<15} {'f\'(x)':<15} {'x_nuevo':<15} {'Error':<15}")
+    print("="*90)
+    
     for i in range(max_iter):
         fx = func(x)
         fpx = derivada(x)
@@ -42,9 +47,13 @@ def metodo_newton_raphson(func, derivada, x0, tolerancia=1e-6, max_iter=100):
             'error': error
         })
         
+        # Mostrar fila de la tabla
+        print(f"{i+1:<10} {x:<15.8f} {fx:<15.8f} {fpx:<15.8f} {x_nuevo:<15.8f} {error:<15.8e}")
+        
         # Condición de convergencia
         if error < tolerancia or abs(fx) < tolerancia:
             tiempo_total = time.time() - tiempo_inicio
+            print("="*90)
             print(f"\nConvergencia alcanzada en {i+1} iteraciones")
             print(f"Tiempo de ejecución: {tiempo_total:.6f} segundos")
             return x_nuevo, i + 1, historial
@@ -53,9 +62,11 @@ def metodo_newton_raphson(func, derivada, x0, tolerancia=1e-6, max_iter=100):
     
     # Si no converge en el número máximo de iteraciones
     tiempo_total = time.time() - tiempo_inicio
+    print("="*90)
     print(f"\nMáximo de iteraciones alcanzado")
     print(f"Tiempo de ejecución: {tiempo_total:.6f} segundos")
     return x, max_iter, historial
+
 
 
 
