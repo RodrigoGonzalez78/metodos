@@ -40,14 +40,7 @@ def sumar_pares_ingresados(N=200):
 
 
 if __name__ == "__main__":
-    numeros, resultado = sumar_pares_aleatorios(50)
+    numeros, resultado = sumar_pares_aleatorios(200)
     print("Números generados:", numeros)
-    print("Suma de pares:", resultado)
+    print("\nSuma de pares:", resultado)
 
-    # Caso con lista fija
-    print("Suma de pares en [10, 21, 30]:", sumar_pares_vector([10, 21, 30]))
-
-    # Caso con ingreso manual (ejecutar para probar en consola)
-    # numeros, resultado = sumar_pares_ingresados(200)
-    # print("Números ingresados:", numeros)
-    # print("Suma de pares:", resultado)

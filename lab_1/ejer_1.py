@@ -31,9 +31,8 @@ def sumar_ingresados(N):
 
 
 if __name__ == "__main__":
-    numeros, resultado = sumar_numeros_aleatorios(20)
+    numeros, resultado = sumar_numeros_aleatorios(1000)
+    
     print("Números generados:", numeros)
-    print("Suma:", resultado)
-
-    print("Suma de [10, 20, 30]:", sumar_vector([10, 20, 30]))
-
+   
+    print("\nSuma:", resultado)
