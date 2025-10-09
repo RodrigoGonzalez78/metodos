@@ -59,35 +59,49 @@ def metodo_newton_raphson(func, derivada, x0, tolerancia=1e-6, max_iter=100):
 
 
 
-def seleccionar_x0_fourier(func, a, b):
+def seleccionar_x0_fourier(func, f_second, a, b):
     """
-    Selecciona x0 basado en la condición de Fourier (menor valor absoluto de f(x))
-    
+    Selecciona x0 basado en la condición suficiente (a veces llamada condición de Fourier)
+    usada en Newton-Raphson: elegir el extremo que cumple f(x0) * f''(x0) > 0.
+
     Parámetros:
-    - func: función a evaluar
+    - func: función a evaluar (numérica)
+    - f_second: segunda derivada de la función (numérica)
     - a: extremo izquierdo del intervalo
     - b: extremo derecho del intervalo
-    
+
     Retorna:
-    - x0: punto inicial seleccionado
+    - x0: punto inicial seleccionado (o None si no se puede elegir)
     - fa, fb: valores de la función en los extremos
     """
     try:
         fa = func(a)
         fb = func(b)
-        
+        f2a = f_second(a)
+        f2b = f_second(b)
+
         # Verifica si existe cambio de signo entre los extremos (condición de Bolzano)
         if fa * fb > 0:
             print(f"  ⚠ No se cumple la condición de Bolzano en [{a:.2f}, {b:.2f}]")
             return None, fa, fb
-        
-        # Selecciona como x0 el extremo con menor valor absoluto de f(x)
+
+        # Condición suficiente para convergencia local de Newton: f(x0)*f''(x0) > 0
+        if fa * f2a > 0:
+            x0 = a
+            print(f"  ✓ Seleccionado x0 = {x0:.2f} (cumple f(x0)*f''(x0) > 0)")
+            return x0, fa, fb
+        elif fb * f2b > 0:
+            x0 = b
+            print(f"  ✓ Seleccionado x0 = {x0:.2f} (cumple f(x0)*f''(x0) > 0)")
+            return x0, fa, fb
+
+        # Si ninguno cumple la condición suficiente, elegir el extremo con menor |f| y avisar
         x0 = a if abs(fa) < abs(fb) else b
-        print(f"  ✓ Seleccionado x0 = {x0:.2f} (menor |f(x)|)")
+        print(f"  ⚠ Ningún extremo cumple f(x)*f''(x)>0. Seleccionado x0 = {x0:.2f} (menor |f(x)|) como fallback")
         return x0, fa, fb
-        
+
     except Exception as e:
-        print(f"  ⚠ Error al evaluar la función: {e}")
+        print(f"  ⚠ Error al evaluar la función o su segunda derivada: {e}")
         return None, None, None
 
 
@@ -181,13 +195,16 @@ def solicitar_parametros():
         
         # Calcula automáticamente la derivada
         f_deriv_sympy = sp.diff(f_sympy, x)
+        # Calcula la segunda derivada
+        f_second_sympy = sp.diff(f_sympy, x, 2)
         
         # Crea funciones evaluables numéricamente
         f = sp.lambdify(x, f_sympy, "math")
         f_deriv = sp.lambdify(x, f_deriv_sympy, "math")
+        f_second = sp.lambdify(x, f_second_sympy, "math")
     except Exception as e:
         print(f"⚠ Error al procesar la función: {e}")
-        return None, None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None
     
     # Solicita los parámetros de búsqueda y precisión
     try:
@@ -201,7 +218,7 @@ def solicitar_parametros():
     tolerancia = float(input("Ingrese la tolerancia (por defecto 1e-6): ") or 1e-6)
     max_iter = int(input("Ingrese el máximo de iteraciones (por defecto 100): ") or 100)
     
-    return f, f_deriv, x_min, x_max, paso, tolerancia, max_iter
+    return f, f_deriv, f_second, x_min, x_max, paso, tolerancia, max_iter
 
 
 
@@ -209,7 +226,7 @@ def main():
     """Función principal que ejecuta todo el proceso"""
     
     # Se obtiene toda la configuración inicial
-    f, f_deriv, x_min, x_max, paso, tolerancia, max_iter = solicitar_parametros()
+    f, f_deriv, f_second, x_min, x_max, paso, tolerancia, max_iter = solicitar_parametros()
     if f is None:
         print("⚠ Error en la configuración. Terminando programa.")
         return
@@ -227,7 +244,7 @@ def main():
     for i, (a, b) in enumerate(intervalos, 1):
         print(f"\n--- Intervalo {i}: [{a:.2f}, {b:.2f}] ---")
         
-        x0, _, _ = seleccionar_x0_fourier(f, a, b)
+        x0, _, _ = seleccionar_x0_fourier(f, f_second, a, b)
         if x0 is None:
             continue
         
