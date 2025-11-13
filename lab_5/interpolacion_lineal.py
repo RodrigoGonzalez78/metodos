@@ -6,86 +6,87 @@ from tkinter import ttk, messagebox, scrolledtext
 # ===========================
 
 class AlgoritmoInterpolacion:
-    """Clase que contiene la lógica pura del algoritmo de interpolación"""
-    
+    """Contiene la lógica del método de interpolación lineal inversa."""
+
     @staticmethod
     def encontrar_intervalo(y_vals, y_buscado):
-        """Encuentra el intervalo adecuado para la interpolación"""
+        """
+        Busca el intervalo donde se encuentra el valor y_buscado.
+
+        Args:
+            y_vals (list): Lista de valores de Y conocidos.
+            y_buscado (float): Valor de Y para el cual se quiere interpolar X.
+
+        Returns:
+            int: Índice del intervalo encontrado.
+        """
         for i in range(len(y_vals) - 1):
             if (y_vals[i] >= y_buscado >= y_vals[i+1]) or \
                (y_vals[i] <= y_buscado <= y_vals[i+1]):
                 return i
         return 0
-    
+
     @staticmethod
     def calcular_interpolacion(x_vals, y_vals, y_buscado):
         """
-        Realiza la interpolación lineal inversa
-        Retorna un diccionario con todos los valores calculados
+        Calcula el valor de X correspondiente a un Y dado
+        mediante interpolación lineal inversa.
+
+        Args:
+            x_vals (list): Valores de X conocidos.
+            y_vals (list): Valores de Y conocidos.
+            y_buscado (float): Valor de Y que se desea interpolar.
+
+        Returns:
+            dict: Resultados y valores intermedios del cálculo.
         """
         i = AlgoritmoInterpolacion.encontrar_intervalo(y_vals, y_buscado)
-        
-        x0 = x_vals[i]
-        x1 = x_vals[i+1]
-        y0 = y_vals[i]
-        y1 = y_vals[i+1]
-        
-        # Calcular valores intermedios
+
+        x0, x1 = x_vals[i], x_vals[i+1]
+        y0, y1 = y_vals[i], y_vals[i+1]
+
         h = x1 - x0
         delta_y = y1 - y0
         diferencia_y = y_buscado - y0
-        
-        # Validar división por cero
+
         if delta_y == 0:
             raise ZeroDivisionError("Los puntos seleccionados tienen el mismo valor de Y")
-        
-        # Calcular interpolación
+
         x_interpolado = x0 + diferencia_y * h / delta_y
-        
+
         return {
             'indice': i,
-            'x0': x0,
-            'x1': x1,
-            'y0': y0,
-            'y1': y1,
+            'x0': x0, 'x1': x1,
+            'y0': y0, 'y1': y1,
             'y_buscado': y_buscado,
-            'h': h,
-            'delta_y': delta_y,
+            'h': h, 'delta_y': delta_y,
             'diferencia_y': diferencia_y,
             'x_resultado': x_interpolado
         }
-    
+
     @staticmethod
     def generar_reporte(datos):
-        """Genera el reporte detallado del cálculo"""
+        """
+        Genera un texto con el desarrollo paso a paso de la interpolación.
+
+        Args:
+            datos (dict): Resultados devueltos por calcular_interpolacion().
+
+        Returns:
+            str: Reporte formateado con todos los cálculos.
+        """
         resultado = f"\n{'='*70}\n"
         resultado += "INTERPOLACIÓN INVERSA LINEAL\n"
         resultado += f"{'='*70}\n\n"
         resultado += f"Puntos seleccionados:\n"
         resultado += f"  P0: (x0 = {datos['x0']:10.6f}, y0 = {datos['y0']:10.6f})\n"
-        resultado += f"  P1: (x1 = {datos['x1']:10.6f}, y1 = {datos['y1']:10.6f})\n"
-        resultado += f"\nValor buscado: y = {datos['y_buscado']:.6f}\n\n"
-        
-        resultado += "Valores intermedios calculados:\n"
-        resultado += f"  h = x1 - x0 = {datos['x1']} - {datos['x0']} = {datos['h']:.6f}\n"
-        resultado += f"  Δy = y1 - y0 = {datos['y1']} - {datos['y0']} = {datos['delta_y']:.6f}\n"
-        resultado += f"  y - y0 = {datos['y_buscado']} - {datos['y0']} = {datos['diferencia_y']:.6f}\n\n"
-        
-        resultado += "Fórmula de interpolación lineal inversa:\n"
-        resultado += "  x = x0 + (y - y0) * h / (y1 - y0)\n\n"
-        
-        resultado += f"Desarrollo paso a paso:\n\n"
-        resultado += f"  x = {datos['x0']} + ({datos['diferencia_y']:.6f}) * ({datos['h']:.6f}) / ({datos['delta_y']:.6f})\n\n"
-        resultado += f"  x = {datos['x0']} + {datos['diferencia_y'] * datos['h']:.6f} / {datos['delta_y']:.6f}\n\n"
-        resultado += f"  x = {datos['x0']} + {(datos['diferencia_y'] * datos['h']) / datos['delta_y']:.6f}\n\n"
-        resultado += f"  x = {datos['x_resultado']:.8f}\n\n"
-        
-        resultado += f"{'='*70}\n"
-        resultado += f"RESULTADO FINAL: x = {datos['x_resultado']:.8f}\n"
-        resultado += f"{'='*70}\n"
-        
+        resultado += f"  P1: (x1 = {datos['x1']:10.6f}, y1 = {datos['y1']:10.6f})\n\n"
+        resultado += f"Valor buscado: y = {datos['y_buscado']:.6f}\n\n"
+        resultado += f"h = {datos['h']:.6f}, Δy = {datos['delta_y']:.6f}, y - y0 = {datos['diferencia_y']:.6f}\n\n"
+        resultado += f"x = x0 + (y - y0) * h / (y1 - y0)\n"
+        resultado += f"x = {datos['x_resultado']:.8f}\n"
+        resultado += f"{'='*70}\nRESULTADO FINAL: x = {datos['x_resultado']:.8f}\n{'='*70}\n"
         return resultado
-
 
 # ===========================
 # INTERFAZ GRÁFICA
