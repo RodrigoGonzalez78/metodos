@@ -3,107 +3,108 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox
 
 # ============================================================================
-# LÓGICA DEL MÉTODO DE LAS POTENCIAS
+# LÓGICA DEL MÉTODO DE LAS POTENCIAS (Separada de la interfaz)
 # ============================================================================
 
 class MetodoPotencias:
-    """Contiene la lógica para calcular autovalores y autovectores
-    usando el método de las potencias y el método de las potencias inverso."""
-
+    """Clase que contiene toda la lógica del método de las potencias"""
+    
     @staticmethod
     def calcular_autovalor_maximo(A, tol, max_iter):
         """
-        Calcula el autovalor máximo y su autovector asociado
-        usando el método de las potencias.
-
-        Args:
-            A (np.ndarray): Matriz cuadrada.
-            tol (float): Tolerancia de error porcentual.
-            max_iter (int): Máximo de iteraciones.
-
+        Calcula el autovalor máximo usando el método de las potencias
+        
         Returns:
-            tuple: (autovalor_max, vector_propio, info_iteraciones)
+            tuple: (lambda_max, vector_propio, iteraciones_info)
         """
         n = A.shape[0]
         x = np.ones(n)
         lambda_old = 0.0
         iteraciones_info = []
-
+        
         for k in range(max_iter):
             y = np.dot(A, x)
             lambda_new = np.max(np.abs(y))
             x_normalizado = y / lambda_new
-
+            
+            # Calcular error
             error = None
             if k > 0:
                 error = abs(lambda_new - lambda_old) / abs(lambda_new) * 100
-
+            
+            # Guardar información de la iteración
             iteraciones_info.append({
                 'iteracion': k + 1,
+                'y': y.copy(),
                 'lambda': lambda_new,
-                'x': x_normalizado.copy(),
+                'x_normalizado': x_normalizado.copy(),
+                'x_anterior': x.copy(),
                 'error': error
             })
-
+            
+            # Verificar convergencia
             if k > 0 and error < tol:
                 break
-
+            
             lambda_old = lambda_new
             x = x_normalizado
-
+        
         return lambda_new, x, iteraciones_info
-
+    
     @staticmethod
     def calcular_autovalor_minimo(A, tol, max_iter):
         """
-        Calcula el autovalor mínimo y su autovector asociado
-        usando el método de las potencias inverso.
-
-        Args:
-            A (np.ndarray): Matriz cuadrada.
-            tol (float): Tolerancia de error porcentual.
-            max_iter (int): Máximo de iteraciones.
-
+        Calcula el autovalor mínimo usando el método de las potencias inverso
+        
         Returns:
-            tuple: (autovalor_min, vector_propio, info_iteraciones, A_inv)
+            tuple: (lambda_min, vector_propio, iteraciones_info, A_inv) o (None, None, None, None)
         """
         try:
             A_inv = np.linalg.inv(A)
         except np.linalg.LinAlgError:
             return None, None, None, None
-
+        
         n = A.shape[0]
         x = np.ones(n)
         lambda_inv_old = 0.0
         iteraciones_info = []
-
+        
         for k in range(max_iter):
             y = np.dot(A_inv, x)
             lambda_inv_new = np.max(np.abs(y))
             x_normalizado = y / lambda_inv_new
+            
             lambda_min_actual = 1 / lambda_inv_new
-
+            
+            # Calcular error
             error = None
             if k > 0:
                 lambda_min_old = 1 / lambda_inv_old
                 error = abs(lambda_min_actual - lambda_min_old) / abs(lambda_min_actual) * 100
-
+            
+            # Guardar información de la iteración
             iteraciones_info.append({
                 'iteracion': k + 1,
+                'y': y.copy(),
+                'lambda_inv': lambda_inv_new,
                 'lambda_min': lambda_min_actual,
-                'x': x_normalizado.copy(),
+                'x_normalizado': x_normalizado.copy(),
+                'x_anterior': x.copy(),
                 'error': error
             })
-
+            
+            # Verificar convergencia
             if k > 0 and error < tol:
                 break
-
+            
             lambda_inv_old = lambda_inv_new
             x = x_normalizado
-
+        
         lambda_min = 1 / lambda_inv_new
+        
         return lambda_min, x, iteraciones_info, A_inv
-    
+
+
 # ============================================================================
 # UTILIDADES DE FORMATEO
 # ============================================================================
