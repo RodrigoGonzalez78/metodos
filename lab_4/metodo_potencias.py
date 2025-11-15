@@ -12,27 +12,41 @@ class MetodoPotencias:
     @staticmethod
     def calcular_autovalor_maximo(A, tol, max_iter):
         """
-        Calcula el autovalor máximo usando el método de las potencias
+        Calcula el autovalor máximo (dominante) usando el método de las potencias
+        
+        [Teórico] Este método converge al autovalor con el mayor valor absoluto.
         
         Returns:
             tuple: (lambda_max, vector_propio, iteraciones_info)
         """
+        # Define la dimensión del espacio vectorial para el cálculo de autovalores.
         n = A.shape[0]
+        # Establece el vector inicial arbitrario (x^(0)) necesario para el proceso iterativo.
         x = np.ones(n)
+        # Inicializa el autovalor previo para poder calcular la convergencia en el siguiente paso.
         lambda_old = 0.0
+        # Almacena el historial de las iteraciones para mostrar la traza completa de la convergencia.
         iteraciones_info = []
         
+        # Inicia el proceso iterativo, buscando la convergencia del autovalor dominante.
         for k in range(max_iter):
+            # Realiza la potencia: la multiplicación (y = A * x^(k)) que acerca y al vector propio dominante.
             y = np.dot(A, x)
+            # Estima el autovalor actual (λ^(k+1)) tomando la norma infinito del vector resultante (y).
             lambda_new = np.max(np.abs(y))
+            # Normaliza el nuevo vector (x^(k+1)) para evitar el desbordamiento y preparar el siguiente paso.
             x_normalizado = y / lambda_new
             
             # Calcular error
+            # Inicializa la variable de error para el criterio de parada.
             error = None
+            # Calcula el error solo si ya existe una estimación anterior (k > 0).
             if k > 0:
+                # Mide el error relativo porcentual entre las estimaciones del autovalor para juzgar la convergencia.
                 error = abs(lambda_new - lambda_old) / abs(lambda_new) * 100
             
             # Guardar información de la iteración
+            # Guarda todos los resultados y vectores de la iteración para el reporte final.
             iteraciones_info.append({
                 'iteracion': k + 1,
                 'y': y.copy(),
@@ -43,46 +57,71 @@ class MetodoPotencias:
             })
             
             # Verificar convergencia
+            # Detiene el proceso si el error relativo cae por debajo de la tolerancia definida (convergencia).
             if k > 0 and error < tol:
+                # Finaliza el bucle al alcanzar la precisión deseada.
                 break
             
+            # El autovalor actual pasa a ser el anterior para la siguiente comparación de error.
             lambda_old = lambda_new
+            # El vector normalizado se convierte en el vector inicial (x^(k+1)) de la próxima iteración.
             x = x_normalizado
         
+        # Retorna la mejor estimación del autovalor dominante y su vector propio asociado.
         return lambda_new, x, iteraciones_info
     
     @staticmethod
     def calcular_autovalor_minimo(A, tol, max_iter):
         """
-        Calcula el autovalor mínimo usando el método de las potencias inverso
+        Calcula el autovalor mínimo (de menor magnitud) usando el método de las potencias inverso
+        
+        [Teórico] Consiste en aplicar el método de las potencias a la matriz inversa (A⁻¹), 
+        cuyos autovalores son los inversos (1/λ) de A. El máximo de A⁻¹ es 1/λ_min.
         
         Returns:
             tuple: (lambda_min, vector_propio, iteraciones_info, A_inv) o (None, None, None, None)
         """
         try:
+            # Calcula la matriz inversa (A⁻¹), cuyos autovalores son los inversos (1/λ).
             A_inv = np.linalg.inv(A)
+        # Maneja el error si la matriz A es singular (determinante cero).
         except np.linalg.LinAlgError:
+            # Devuelve error si la matriz no es invertible, impidiendo el método inverso.
             return None, None, None, None
         
+        # Define la dimensión de la matriz para los cálculos vectoriales.
         n = A.shape[0]
+        # Establece el vector inicial arbitrario (x^(0)) para el método de las potencias inverso.
         x = np.ones(n)
+        # Inicializa la estimación previa del autovalor de A⁻¹ (1/λ) para el cálculo de error.
         lambda_inv_old = 0.0
+        # Almacena el historial de las iteraciones para trazar la convergencia de λ_min.
         iteraciones_info = []
         
+        # Inicia el proceso iterativo aplicando el método de las potencias a la matriz inversa.
         for k in range(max_iter):
+            # Realiza la multiplicación (y = A⁻¹ * x^(k)), buscando el autovalor dominante de A⁻¹.
             y = np.dot(A_inv, x)
+            # Estima el autovalor dominante de A⁻¹, que es el inverso del autovalor mínimo de A (1/λ_min).
             lambda_inv_new = np.max(np.abs(y))
+            # Normaliza el vector para obtener la nueva estimación del vector propio asociado a λ_min.
             x_normalizado = y / lambda_inv_new
             
+            # Calcula la estimación actual del autovalor mínimo de A invirtiendo el valor obtenido de A⁻¹.
             lambda_min_actual = 1 / lambda_inv_new
             
             # Calcular error
+            # Inicializa el error para el criterio de convergencia.
             error = None
+            # Prepara el cálculo del error relativo solo a partir de la segunda iteración.
             if k > 0:
+                # Recupera el autovalor mínimo anterior de A para calcular el error de convergencia.
                 lambda_min_old = 1 / lambda_inv_old
+                # Mide la precisión de la estimación de λ_min comparándolo con el valor de la iteración anterior.
                 error = abs(lambda_min_actual - lambda_min_old) / abs(lambda_min_actual) * 100
             
             # Guardar información de la iteración
+            # Guarda los resultados clave (λ_inv y λ_min) para trazar la historia de la convergencia.
             iteraciones_info.append({
                 'iteracion': k + 1,
                 'y': y.copy(),
@@ -94,14 +133,20 @@ class MetodoPotencias:
             })
             
             # Verificar convergencia
+            # Detiene el proceso si el error relativo de λ_min es menor que la tolerancia.
             if k > 0 and error < tol:
+                # Finaliza el bucle al alcanzar la precisión deseada.
                 break
             
+            # El autovalor inverso actual pasa a ser el anterior para la siguiente comparación de error.
             lambda_inv_old = lambda_inv_new
+            # El vector normalizado se convierte en el vector inicial (x^(k+1)) para la próxima iteración.
             x = x_normalizado
         
+        # Calcula el resultado final del autovalor mínimo a partir de la última estimación inversa.
         lambda_min = 1 / lambda_inv_new
         
+        # Retorna la mejor estimación del autovalor mínimo y su vector propio asociado.
         return lambda_min, x, iteraciones_info, A_inv
 
 
@@ -110,10 +155,11 @@ class MetodoPotencias:
 # ============================================================================
 
 class FormateadorResultados:
-    """Clase para formatear matrices y vectores"""
+    """Clase para formatear matrices y vectores para una presentación amigable en texto"""
     
     @staticmethod
     def formatear_matriz(matriz):
+        # Formatea la matriz NumPy como texto para su visualización con 3 decimales.
         texto = ""
         for fila in matriz:
             texto += "│ "
@@ -124,6 +170,7 @@ class FormateadorResultados:
     
     @staticmethod
     def formatear_vector(vector):
+        # Formatea el vector NumPy como texto para su visualización con 3 decimales.
         texto = "│ "
         for valor in vector:
             texto += f"{valor:8.3f} "
@@ -132,7 +179,7 @@ class FormateadorResultados:
 
 
 # ============================================================================
-# INTERFAZ GRÁFICA
+# INTERFAZ GRÁFICA (Sin cambios en la lógica de GUI)
 # ============================================================================
 
 class MetodoPotenciasGUI:
@@ -161,24 +208,24 @@ class MetodoPotenciasGUI:
         
         # Botón principal (Calcular)
         style.configure('Primary.TButton',
-                       foreground='white',
-                       background='#2196F3',
-                       font=('Arial', 10, 'bold'),
-                       padding=10)
+                        foreground='white',
+                        background='#2196F3',
+                        font=('Arial', 10, 'bold'),
+                        padding=10)
         
         # Botón secundario (Crear Matriz)
         style.configure('Secondary.TButton',
-                       foreground='white',
-                       background='#4CAF50',
-                       font=('Arial', 9),
-                       padding=5)
+                        foreground='white',
+                        background='#4CAF50',
+                        font=('Arial', 9),
+                        padding=5)
         
         # Frames con bordes
         style.configure('Card.TFrame',
-                       background='#f5f5f5',
-                       relief='raised')
+                        background='#f5f5f5',
+                        relief='raised')
     
-    def crear_interfaz(self):
+    def crear_interfaz(self,):
         """Crea toda la interfaz gráfica"""
         # Frame principal
         main_frame = ttk.Frame(self.root, padding="15")
@@ -188,8 +235,8 @@ class MetodoPotenciasGUI:
         
         # Título
         titulo = ttk.Label(main_frame, 
-                          text="🔢 Método de las Potencias",
-                          font=('Arial', 16, 'bold'))
+                             text="🔢 Método de las Potencias",
+                             font=('Arial', 16, 'bold'))
         titulo.grid(row=0, column=0, pady=(0, 15))
         
         # Frame de configuración de matriz
@@ -219,25 +266,25 @@ class MetodoPotenciasGUI:
         
         self.size_var = tk.IntVar(value=3)
         size_spinbox = ttk.Spinbox(config_frame, 
-                                   from_=2, 
-                                   to=10, 
-                                   textvariable=self.size_var, 
-                                   width=10,
-                                   validate='key',
-                                   validatecommand=(self.root.register(self.validar_tamano), '%P'))
+                                     from_=2, 
+                                     to=10, 
+                                     textvariable=self.size_var, 
+                                     width=10,
+                                     validate='key',
+                                     validatecommand=(self.root.register(self.validar_tamano), '%P'))
         size_spinbox.grid(row=0, column=1, sticky=tk.W, padx=5)
         
         # Botón con color
         btn_crear = tk.Button(config_frame, 
-                            text="Crear Matriz",
-                            command=self.crear_matriz,
-                            bg='#4CAF50',
-                            fg='white',
-                            font=('Arial', 9, 'bold'),
-                            relief=tk.RAISED,
-                            cursor='hand2',
-                            padx=15,
-                            pady=5)
+                              text="Crear Matriz",
+                              command=self.crear_matriz,
+                              bg='#4CAF50',
+                              fg='white',
+                              font=('Arial', 9, 'bold'),
+                              relief=tk.RAISED,
+                              cursor='hand2',
+                              padx=15,
+                              pady=5)
         btn_crear.grid(row=0, column=2, padx=10)
         
         # Efectos hover
@@ -257,8 +304,8 @@ class MetodoPotenciasGUI:
     def crear_frame_matriz(self, parent):
         """Crea el frame para ingresar la matriz"""
         self.matrix_frame = ttk.LabelFrame(parent, 
-                                          text="📊 Ingrese los elementos de la matriz", 
-                                          padding="10")
+                                             text="📊 Ingrese los elementos de la matriz", 
+                                             padding="10")
         self.matrix_frame.grid(row=2, column=0, pady=(0, 10), sticky=(tk.W, tk.E))
         self.entries = []
     
@@ -287,22 +334,22 @@ class MetodoPotenciasGUI:
         # Checkbox
         self.calc_min_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(params_frame, 
-                       text="✓ Calcular también autovalor mínimo", 
-                       variable=self.calc_min_var).grid(
+                        text="✓ Calcular también autovalor mínimo", 
+                        variable=self.calc_min_var).grid(
             row=1, column=0, columnspan=4, pady=5, sticky=tk.W)
     
     def crear_boton_calcular(self, parent):
         """Crea el botón de calcular con estilo"""
         btn_calcular = tk.Button(parent,
-                                text="🚀 CALCULAR",
-                                command=self.calcular,
-                                bg='#2196F3',
-                                fg='white',
-                                font=('Arial', 12, 'bold'),
-                                relief=tk.RAISED,
-                                cursor='hand2',
-                                padx=30,
-                                pady=10)
+                                 text="🚀 CALCULAR",
+                                 command=self.calcular,
+                                 bg='#2196F3',
+                                 fg='white',
+                                 font=('Arial', 12, 'bold'),
+                                 relief=tk.RAISED,
+                                 cursor='hand2',
+                                 padx=30,
+                                 pady=10)
         btn_calcular.grid(row=4, column=0, pady=15)
         
         # Efectos hover
@@ -312,7 +359,7 @@ class MetodoPotenciasGUI:
     def crear_area_resultados(self, parent):
         """Crea el área de resultados"""
         ttk.Label(parent, text="📋 Resultados:", 
-                 font=('Arial', 10, 'bold')).grid(row=5, column=0, sticky=tk.W)
+                  font=('Arial', 10, 'bold')).grid(row=5, column=0, sticky=tk.W)
         
         self.resultado_text = scrolledtext.ScrolledText(
             parent, 
@@ -359,7 +406,7 @@ class MetodoPotenciasGUI:
             return A
         except ValueError:
             messagebox.showerror("Error", 
-                               "Por favor ingrese valores numéricos válidos")
+                                 "Por favor ingrese valores numéricos válidos")
             return None
     
     def mostrar_iteracion_maxima(self, A, info):
@@ -429,7 +476,7 @@ class MetodoPotenciasGUI:
         # Validar que el tamaño sea >= 2
         if self.size_var.get() < 2:
             messagebox.showerror("Error", 
-                               "El tamaño de la matriz debe ser mayor o igual a 2")
+                                 "El tamaño de la matriz debe ser mayor o igual a 2")
             return
         
         self.resultado_text.delete(1.0, tk.END)
@@ -462,7 +509,7 @@ class MetodoPotenciasGUI:
             self.mostrar_iteracion_maxima(A, info)
             if info['error'] is not None and info['error'] < tol:
                 self.resultado_text.insert(tk.END, 
-                    f"✅ Convergencia alcanzada (Error < {tol}%)\n\n")
+                    f"✅ Convergencia alcanzada (Error < {tol}%) en la iteración {info['iteracion']}\n\n")
                 break
         
         # Resultado final máximo
@@ -488,7 +535,7 @@ class MetodoPotenciasGUI:
             
             if lambda_min is None:
                 self.resultado_text.insert(tk.END, 
-                    "❌ La matriz no es invertible.\n")
+                    "❌ La matriz no es invertible (determinante cero). No se puede aplicar el método inverso.\n")
             else:
                 self.resultado_text.insert(tk.END, 
                     "Paso 1: Calcular la matriz inversa A⁻¹\n\n")
@@ -501,7 +548,7 @@ class MetodoPotenciasGUI:
                     self.mostrar_iteracion_minima(A_inv, info)
                     if info['error'] is not None and info['error'] < tol:
                         self.resultado_text.insert(tk.END, 
-                            f"✅ Convergencia alcanzada (Error < {tol}%)\n\n")
+                            f"✅ Convergencia alcanzada (Error < {tol}%) en la iteración {info['iteracion']}\n\n")
                         break
                 
                 # Resultado final mínimo
