@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
+import math
 
 # ===========================
 # LÓGICA DEL ALGORITMO
@@ -21,15 +22,40 @@ class AlgoritmoInterpolacion:
         Returns:
             int: Índice del primer punto del intervalo (necesitamos i, i+1, i+2).
         """
-        # Buscar el intervalo que contiene y_buscado
-        for i in range(len(y_vals) - 2):
-            # Verificar si y_buscado está entre y[i] y y[i+2]
-            y_min = min(y_vals[i], y_vals[i+1], y_vals[i+2])
-            y_max = max(y_vals[i], y_vals[i+1], y_vals[i+2])
+        # Se asume que los datos están ordenados por X, lo cual es manejado en la interfaz.
+        
+        y_vals_list = list(y_vals)
+
+        # Manejo de Extrapolación: Si el valor está fuera del rango min/max,
+        # se toma el primer o último intervalo de 3 puntos.
+        
+        if not y_vals_list:
+             return 0
+             
+        y_min_total = min(y_vals_list)
+        y_max_total = max(y_vals_list)
+        
+        if y_buscado < y_min_total or y_buscado > y_max_total:
+            if len(y_vals_list) >= 3:
+                # Extrapolación: Elige el intervalo más cercano (inicio o final)
+                if abs(y_buscado - y_vals_list[0]) < abs(y_buscado - y_vals_list[-1]):
+                     return 0 
+                else:
+                     return len(y_vals_list) - 3
+            else:
+                 return 0 # No hay suficientes puntos
+        
+        # Búsqueda de Intervalo (Interpolación)
+        for i in range(len(y_vals_list) - 2):
+            # Encontrar el rango Y de los tres puntos consecutivos
+            y_sub_vals = [y_vals_list[i], y_vals_list[i+1], y_vals_list[i+2]]
+            y_min = min(y_sub_vals)
+            y_max = max(y_sub_vals)
             
+            # Verificar si y_buscado está dentro del rango Y de estos 3 puntos
             if y_min <= y_buscado <= y_max:
                 return i
-        return 0
+        return 0 # En caso de que no se encuentre un intervalo exacto (debería ser raro si se pasó la validación de rango)
 
     @staticmethod
     def calcular_interpolacion(x_vals, y_vals, y_buscado):
@@ -37,16 +63,6 @@ class AlgoritmoInterpolacion:
         Calcula el valor de X correspondiente a un Y dado
         mediante interpolación cuadrática inversa.
         
-        La fórmula utilizada es:
-        P(x) = y₀ + (Δy₀/h)*(x - x₀) + (Δ²y₀/2!h²)*(x - x₀)*(x - x₁)
-        
-        Donde:
-        - y₀, y₁, y₂ son tres valores consecutivos de Y
-        - x₀, x₁, x₂ son los valores correspondientes de X
-        - h = x₁ - x₀ (espaciamiento entre puntos)
-        - Δy₀ = y₁ - y₀ (primera diferencia dividida)
-        - Δ²y₀ = (y₂ - 2*y₁ + y₀) (segunda diferencia dividida)
-
         Args:
             x_vals (list): Valores de X conocidos.
             y_vals (list): Valores de Y conocidos.
@@ -55,8 +71,16 @@ class AlgoritmoInterpolacion:
         Returns:
             dict: Resultados y valores intermedios del cálculo.
         """
+        # Validar que haya al menos 3 puntos
+        if len(x_vals) < 3 or len(y_vals) < 3:
+             raise ValueError("Se requieren al menos 3 puntos para la interpolación cuadrática inversa.")
+
         # Encontrar el intervalo de 3 puntos que contiene y_buscado
         i = AlgoritmoInterpolacion.encontrar_intervalo(y_vals, y_buscado)
+
+        # Asegurar que el índice no exceda los límites de la lista
+        if i < 0 or i > len(x_vals) - 3:
+            i = 0 
 
         # Extraer los tres puntos necesarios
         x0, x1, x2 = x_vals[i], x_vals[i+1], x_vals[i+2]
@@ -65,63 +89,86 @@ class AlgoritmoInterpolacion:
         # Calcular el espaciamiento h
         h = x1 - x0
         
+        # Usar tolerancia para cero
+        if abs(h) < 1e-9: 
+            raise ZeroDivisionError("Los puntos X seleccionados son idénticos o están demasiado cerca.")
+
         # Calcular las diferencias divididas
-        # Primera diferencia: Δy₀ = y₁ - y₀
         delta_y0 = y1 - y0
-        
-        # Segunda diferencia: Δ²y₀ = y₂ - 2*y₁ + y₀
         delta2_y0 = y2 - 2*y1 + y0
-        
-        # Diferencia entre el valor buscado y y₀
         diferencia_y = y_buscado - y0
 
-        # Validar que h no sea cero (puntos no deben coincidir)
-        if h == 0:
-            raise ZeroDivisionError("Los puntos X seleccionados son idénticos")
-
-        # Resolver la ecuación cuadrática inversa para encontrar x
-        # La ecuación cuadrática es: P(x) = y₀ + (Δy₀/h)*(x - x₀) + (Δ²y₀/2h²)*(x - x₀)*(x - x₁)
-        # Reorganizando: (Δ²y₀/2h²)*(x - x₀)*(x - x₁) + (Δy₀/h)*(x - x₀) + (y₀ - y) = 0
+        # Coeficientes de la ecuación cuadrática ax² + bu + c = 0 (donde u = x - x₀)
+        # La ecuación es: y = y₀ + (Δy₀/h)*u + (Δ²y₀/2h²)*u*(u - h)
+        # Reordenando para y - y_buscado = 0, y haciendo y = y_buscado
         
-        # Coeficientes de la ecuación cuadrática ax² + bx + c = 0
-        # donde u = x - x₀
-        
-        # Coeficiente de u²
+        # Coeficiente de u² (a)
         a = delta2_y0 / (2 * h * h)
         
-        # Coeficiente de u (considerando que (x-x₀)*(x-x₁) = (x-x₀)*((x-x₀)-h) = u*(u-h))
-        b = delta_y0 / h - (delta2_y0 * h) / (2 * h * h)
+        # Coeficiente de u (b)
+        b = delta_y0 / h - (delta2_y0 / (2 * h))
         
-        # Término independiente
+        # Término independiente (c)
         c = -diferencia_y
         
-        # Resolver usando la fórmula cuadrática: u = (-b ± √(b² - 4ac)) / 2a
-        discriminante = b * b - 4 * a * c
-        
-        if discriminante < 0:
-            raise ValueError("No existe solución real (discriminante negativo)")
-        
-        import math
-        sqrt_discriminante = math.sqrt(discriminante)
-        
-        # Calcular ambas soluciones posibles
-        u1 = (-b + sqrt_discriminante) / (2 * a) if a != 0 else -c / b
-        u2 = (-b - sqrt_discriminante) / (2 * a) if a != 0 else -c / b
-        
-        # x = x₀ + u
-        x_sol1 = x0 + u1
-        x_sol2 = x0 + u2
-        
-        # Seleccionar la solución que esté dentro del intervalo [x₀, x₂]
-        x_min, x_max = min(x0, x2), max(x0, x2)
-        
-        if x_min <= x_sol1 <= x_max:
-            x_interpolado = x_sol1
-        elif x_min <= x_sol2 <= x_max:
-            x_interpolado = x_sol2
+        # Inicialización de resultados
+        x_interpolado = float('nan')
+        x_sol1 = float('nan')
+        x_sol2 = float('nan')
+        discriminante = float('nan')
+
+        # Caso lineal si a es cero (o muy cercano a cero)
+        if abs(a) < 1e-9:
+            discriminante = 0 # Para el reporte
+            if abs(b) < 1e-9:
+                if abs(c) < 1e-9:
+                    x_interpolado = x0
+                else:
+                    raise ValueError("El valor buscado (Y) no es alcanzable con los puntos seleccionados.")
+            else:
+                # Ecuación lineal: bu + c = 0 => u = -c / b
+                u1 = -c / b
+                x_sol1 = x0 + u1
+                x_interpolado = x_sol1
         else:
-            # Si ninguna está en el intervalo, tomar la más cercana
-            x_interpolado = x_sol1 if abs(x_sol1 - x0) < abs(x_sol2 - x0) else x_sol2
+            # Caso cuadrático
+            discriminante = b * b - 4 * a * c
+            
+            if discriminante < 0:
+                raise ValueError("No existe solución real (discriminante negativo)")
+            
+            sqrt_discriminante = math.sqrt(discriminante)
+            
+            # Calcular ambas soluciones posibles para u
+            u1 = (-b + sqrt_discriminante) / (2 * a)
+            u2 = (-b - sqrt_discriminante) / (2 * a)
+            
+            # x = x₀ + u
+            x_sol1 = x0 + u1
+            x_sol2 = x0 + u2
+            
+            # Seleccionar la solución que esté dentro o más cercana al intervalo [x₀, x₂]
+            x_min_interv, x_max_interv = min(x0, x2), max(x0, x2)
+            
+            is_sol1_in = (x_min_interv <= x_sol1 <= x_max_interv)
+            is_sol2_in = (x_min_interv <= x_sol2 <= x_max_interv)
+
+            if is_sol1_in and is_sol2_in:
+                # Si ambas están en el intervalo, seleccionar la más cercana al punto medio (x1)
+                if abs(x_sol1 - x1) < abs(x_sol2 - x1):
+                    x_interpolado = x_sol1
+                else:
+                    x_interpolado = x_sol2
+            elif is_sol1_in:
+                x_interpolado = x_sol1
+            elif is_sol2_in:
+                x_interpolado = x_sol2
+            else:
+                # Si ninguna está en el intervalo, tomar la más cercana a x1
+                if abs(x_sol1 - x1) < abs(x_sol2 - x1):
+                    x_interpolado = x_sol1
+                else:
+                    x_interpolado = x_sol2
 
         return {
             'indice': i,
@@ -152,28 +199,34 @@ class AlgoritmoInterpolacion:
         Returns:
             str: Reporte formateado con todos los cálculos.
         """
+        def format_val(val):
+            return f"{val:.8f}" if not math.isnan(val) else "N/A"
+
         resultado = f"\n{'='*70}\n"
         resultado += "INTERPOLACIÓN INVERSA CUADRÁTICA\n"
         resultado += f"{'='*70}\n\n"
-        resultado += f"Puntos seleccionados:\n"
-        resultado += f"  P0: (x0 = {datos['x0']:10.6f}, y0 = {datos['y0']:10.6f})\n"
-        resultado += f"  P1: (x1 = {datos['x1']:10.6f}, y1 = {datos['y1']:10.6f})\n"
-        resultado += f"  P2: (x2 = {datos['x2']:10.6f}, y2 = {datos['y2']:10.6f})\n\n"
-        resultado += f"Valor buscado: y = {datos['y_buscado']:.6f}\n\n"
+        resultado += f"Puntos seleccionados para la interpolación (Índice {datos['indice']}):\n"
+        resultado += f"  P0: (x0 = {format_val(datos['x0'])}, y0 = {format_val(datos['y0'])})\n"
+        resultado += f"  P1: (x1 = {format_val(datos['x1'])}, y1 = {format_val(datos['y1'])})\n"
+        resultado += f"  P2: (x2 = {format_val(datos['x2'])}, y2 = {format_val(datos['y2'])})\n\n"
+        resultado += f"Valor buscado: y = {format_val(datos['y_buscado'])}\n\n"
         resultado += f"Cálculos intermedios:\n"
-        resultado += f"  h = x₁ - x₀ = {datos['h']:.6f}\n"
-        resultado += f"  Δy₀ = y₁ - y₀ = {datos['delta_y0']:.6f}\n"
-        resultado += f"  Δ²y₀ = y₂ - 2y₁ + y₀ = {datos['delta2_y0']:.6f}\n"
-        resultado += f"  y - y₀ = {datos['diferencia_y']:.6f}\n\n"
-        resultado += f"Ecuación cuadrática (au² + bu + c = 0):\n"
-        resultado += f"  a = {datos['coef_a']:.8f}\n"
-        resultado += f"  b = {datos['coef_b']:.8f}\n"
-        resultado += f"  c = {datos['coef_c']:.8f}\n"
-        resultado += f"  Discriminante = {datos['discriminante']:.8f}\n\n"
-        resultado += f"Soluciones:\n"
-        resultado += f"  x₁ = {datos['x_sol1']:.8f}\n"
-        resultado += f"  x₂ = {datos['x_sol2']:.8f}\n\n"
-        resultado += f"{'='*70}\nRESULTADO FINAL: x = {datos['x_resultado']:.8f}\n{'='*70}\n"
+        resultado += f"  h = x₁ - x₀ = {format_val(datos['h'])}\n"
+        resultado += f"  Δy₀ = y₁ - y₀ = {format_val(datos['delta_y0'])}\n"
+        resultado += f"  Δ²y₀ = y₂ - 2y₁ + y₀ = {format_val(datos['delta2_y0'])}\n"
+        resultado += f"  y - y₀ = {format_val(datos['diferencia_y'])}\n\n"
+        resultado += f"Ecuación cuadrática (au² + bu + c = 0, donde u = x - x₀):\n"
+        resultado += f"  a = Δ²y₀ / (2h²) = {format_val(datos['coef_a'])}\n"
+        resultado += f"  b = (Δy₀/h) - (Δ²y₀/2h) = {format_val(datos['coef_b'])}\n"
+        resultado += f"  c = -(y - y₀) = {format_val(datos['coef_c'])}\n"
+        
+        resultado += f"  Discriminante (D = b² - 4ac) = {format_val(datos['discriminante'])}\n\n"
+        
+        resultado += f"Soluciones (u = (-b ± √D) / 2a):\n"
+        resultado += f"  u₁: {format_val(datos['x_sol1'] - datos['x0'])} => x₁ = x₀ + u₁ = {format_val(datos['x_sol1'])}\n"
+        resultado += f"  u₂: {format_val(datos['x_sol2'] - datos['x0'])} => x₂ = x₀ + u₂ = {format_val(datos['x_sol2'])}\n\n"
+        
+        resultado += f"{'='*70}\nRESULTADO FINAL SELECCIONADO: x = {format_val(datos['x_resultado'])}\n{'='*70}\n"
         return resultado
 
 # ===========================
@@ -184,8 +237,12 @@ class InterpolacionInversa:
     def __init__(self, root):
         self.root = root
         self.root.title("Interpolación Inversa Cuadrática")
-        self.root.geometry("950x700")
+        self.root.geometry("850x750") # Tamaño inicial ajustado
         self.root.configure(bg='#f0f0f0')
+        
+        # Configuración de Responsividad de la ventana principal
+        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_rowconfigure(0, weight=1)
         
         # Listas para almacenar los datos
         self.x_vals = []
@@ -197,51 +254,75 @@ class InterpolacionInversa:
         self.crear_interfaz()
         
     def crear_interfaz(self):
-        # Título
-        titulo = tk.Label(self.root, text="Interpolación Inversa Cuadrática", 
-                         font=('Arial', 16, 'bold'), bg='#f0f0f0')
-        titulo.pack(pady=10)
+        # Usamos un Frame principal para contener todo y que sea el que se expande
+        main_frame = ttk.Frame(self.root, padding="10 10 10 10")
+        main_frame.grid(row=0, column=0, sticky='nsew')
+        main_frame.grid_columnconfigure(0, weight=1)
         
-        # Frame para entrada de datos
-        frame_entrada = tk.LabelFrame(self.root, text="Ingreso de Datos (Pares x, y)", 
-                                     font=('Arial', 11, 'bold'), bg='#f0f0f0')
-        frame_entrada.pack(padx=20, pady=10, fill='x')
+        # Hacer que la fila de la tabla se expanda más
+        main_frame.grid_rowconfigure(2, weight=1) 
+
+        # Título
+        titulo = tk.Label(main_frame, text="Interpolación Inversa Cuadrática", 
+                          font=('Arial', 18, 'bold'), bg='#f0f0f0', fg='#1E88E5')
+        titulo.grid(row=0, column=0, pady=(0, 15), sticky='ew')
+        
+        # Frame 1: Ingreso de Datos (Row 1)
+        frame_entrada = tk.LabelFrame(main_frame, text="Ingreso de Datos (Pares x, y)", 
+                                      font=('Arial', 11, 'bold'), bg='#f0f0f0', padx=10, pady=5)
+        frame_entrada.grid(row=1, column=0, padx=5, pady=5, sticky='ew')
+        
+        # Configuración de pesos para el frame de entrada
+        frame_entrada.grid_columnconfigure(1, weight=2) # Columna del input X
+        frame_entrada.grid_columnconfigure(3, weight=2) # Columna del input Y
+        frame_entrada.grid_columnconfigure(0, weight=1)
+        frame_entrada.grid_columnconfigure(2, weight=1)
+        frame_entrada.grid_columnconfigure(4, weight=1)
+        frame_entrada.grid_columnconfigure(5, weight=1)
+        frame_entrada.grid_columnconfigure(6, weight=1)
         
         # Campos para ingresar x e y
-        frame_inputs = tk.Frame(frame_entrada, bg='#f0f0f0')
-        frame_inputs.pack(pady=10)
+        tk.Label(frame_entrada, text="Valor X:", font=('Arial', 10), 
+                 bg='#f0f0f0').grid(row=0, column=0, padx=(0, 5), pady=5, sticky='w')
+        self.entry_x = tk.Entry(frame_entrada, font=('Arial', 10), width=15)
+        self.entry_x.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
         
-        tk.Label(frame_inputs, text="Valor X:", font=('Arial', 10), 
-                bg='#f0f0f0').grid(row=0, column=0, padx=5, pady=5)
-        self.entry_x = tk.Entry(frame_inputs, font=('Arial', 10), width=15)
-        self.entry_x.grid(row=0, column=1, padx=5, pady=5)
+        tk.Label(frame_entrada, text="Valor Y:", font=('Arial', 10), 
+                 bg='#f0f0f0').grid(row=0, column=2, padx=(10, 5), pady=5, sticky='w')
+        self.entry_y_dato = tk.Entry(frame_entrada, font=('Arial', 10), width=15)
+        self.entry_y_dato.grid(row=0, column=3, padx=5, pady=5, sticky='ew')
         
-        tk.Label(frame_inputs, text="Valor Y:", font=('Arial', 10), 
-                bg='#f0f0f0').grid(row=0, column=2, padx=5, pady=5)
-        self.entry_y_dato = tk.Entry(frame_inputs, font=('Arial', 10), width=15)
-        self.entry_y_dato.grid(row=0, column=3, padx=5, pady=5)
+        # Botones de acción de datos
+        btn_agregar = tk.Button(frame_entrada, text="Agregar Punto", 
+                                command=self.agregar_punto,
+                                font=('Arial', 9, 'bold'), bg='#4CAF50', fg='white')
+        btn_agregar.grid(row=0, column=4, padx=(10, 5), pady=5, sticky='ew')
         
-        btn_agregar = tk.Button(frame_inputs, text="Agregar Punto", 
-                               command=self.agregar_punto,
-                               font=('Arial', 9, 'bold'), bg='#4CAF50', fg='white')
-        btn_agregar.grid(row=0, column=4, padx=10, pady=5)
+        btn_cargar_ejemplo = tk.Button(frame_entrada, text="Cargar Ejemplo", 
+                                        command=self.cargar_ejemplo,
+                                        font=('Arial', 9), bg='#9C27B0', fg='white')
+        btn_cargar_ejemplo.grid(row=0, column=5, padx=5, pady=5, sticky='ew')
         
-        btn_cargar_ejemplo = tk.Button(frame_inputs, text="Cargar Ejemplo", 
-                                       command=self.cargar_ejemplo,
-                                       font=('Arial', 9), bg='#9C27B0', fg='white')
-        btn_cargar_ejemplo.grid(row=0, column=5, padx=5, pady=5)
+        btn_limpiar_datos = tk.Button(frame_entrada, text="Limpiar Datos", 
+                                       command=self.limpiar_datos,
+                                       font=('Arial', 9), bg='#F44336', fg='white')
+        btn_limpiar_datos.grid(row=0, column=6, padx=(5, 0), pady=5, sticky='ew')
         
-        btn_limpiar_datos = tk.Button(frame_inputs, text="Limpiar Datos", 
-                                      command=self.limpiar_datos,
-                                      font=('Arial', 9), bg='#F44336', fg='white')
-        btn_limpiar_datos.grid(row=0, column=6, padx=5, pady=5)
+        # Frame 2: Datos Ingresados y Búsqueda (Row 2, expandible)
+        frame_datos_busqueda = ttk.Frame(main_frame)
+        frame_datos_busqueda.grid(row=2, column=0, padx=5, pady=5, sticky='nsew')
+        frame_datos_busqueda.grid_columnconfigure(0, weight=1) # Tabla (Izquierda)
+        frame_datos_busqueda.grid_columnconfigure(1, weight=1) # Búsqueda/Resultados (Derecha)
+        frame_datos_busqueda.grid_rowconfigure(0, weight=1)
         
-        # Frame para mostrar datos ingresados
-        frame_tabla = tk.LabelFrame(self.root, text="Datos Ingresados", 
-                                   font=('Arial', 11, 'bold'), bg='#f0f0f0')
-        frame_tabla.pack(padx=20, pady=10, fill='both', expand=True)
+        # Sub-Frame Izquierdo: Tabla de Datos
+        frame_tabla = tk.LabelFrame(frame_datos_busqueda, text="Datos Ingresados", 
+                                    font=('Arial', 11, 'bold'), bg='#f0f0f0', padx=10, pady=5)
+        frame_tabla.grid(row=0, column=0, sticky='nsew', padx=(0, 5))
+        frame_tabla.grid_columnconfigure(0, weight=1)
+        frame_tabla.grid_rowconfigure(0, weight=1) # Hacer que la tabla se expanda
         
-        # Crear Treeview para mostrar los datos
+        # Treeview para mostrar los datos
         columns = ('index', 'x', 'y')
         self.tree = ttk.Treeview(frame_tabla, columns=columns, show='headings', height=6)
         
@@ -249,139 +330,185 @@ class InterpolacionInversa:
         self.tree.heading('x', text='X')
         self.tree.heading('y', text='Y')
         
-        self.tree.column('index', width=50, anchor='center')
-        self.tree.column('x', width=150, anchor='center')
-        self.tree.column('y', width=150, anchor='center')
+        self.tree.column('index', width=50, stretch=tk.NO, anchor='center')
+        self.tree.column('x', minwidth=100, anchor='center', stretch=tk.YES)
+        self.tree.column('y', minwidth=100, anchor='center', stretch=tk.YES)
         
-        self.tree.pack(side='left', fill='both', expand=True, padx=10, pady=10)
+        self.tree.grid(row=0, column=0, sticky='nsew', padx=(0, 5), pady=5)
         
         # Scrollbar para la tabla
         scrollbar_tabla = ttk.Scrollbar(frame_tabla, orient='vertical', command=self.tree.yview)
-        scrollbar_tabla.pack(side='right', fill='y')
+        scrollbar_tabla.grid(row=0, column=1, sticky='ns')
         self.tree.configure(yscrollcommand=scrollbar_tabla.set)
         
-        # Botón para eliminar punto seleccionado
+        # Botón para eliminar punto seleccionado (debajo de la tabla)
         btn_eliminar = tk.Button(frame_tabla, text="Eliminar Seleccionado", 
-                                command=self.eliminar_punto,
-                                font=('Arial', 9), bg='#FF5722', fg='white')
-        btn_eliminar.pack(pady=5)
+                                 command=self.eliminar_punto,
+                                 font=('Arial', 9), bg='#FF5722', fg='white')
+        btn_eliminar.grid(row=1, column=0, columnspan=2, pady=5, sticky='ew')
         
+        # Sub-Frame Derecho: Búsqueda, Botones y Resultado Rápido
+        frame_resultados_cont = ttk.Frame(frame_datos_busqueda)
+        frame_resultados_cont.grid(row=0, column=1, sticky='nsew', padx=(5, 0))
+        frame_resultados_cont.grid_columnconfigure(0, weight=1)
+
         # Frame para valor a buscar
-        frame_buscar = tk.LabelFrame(self.root, text="Valor Y a Interpolar (Buscar X)", 
-                                    font=('Arial', 11, 'bold'), bg='#f0f0f0')
-        frame_buscar.pack(padx=20, pady=10, fill='x')
+        frame_buscar = tk.LabelFrame(frame_resultados_cont, text="Valor Y a Interpolar", 
+                                     font=('Arial', 11, 'bold'), bg='#f0f0f0', padx=10, pady=5)
+        frame_buscar.grid(row=0, column=0, sticky='ew', pady=(0, 10))
+        frame_buscar.grid_columnconfigure(1, weight=1)
         
-        frame_buscar_input = tk.Frame(frame_buscar, bg='#f0f0f0')
-        frame_buscar_input.pack(pady=10)
+        tk.Label(frame_buscar, text="Valor Y buscado:", 
+                 font=('Arial', 10), bg='#f0f0f0').grid(row=0, column=0, padx=10, pady=5, sticky='w')
         
-        tk.Label(frame_buscar_input, text="Valor Y buscado:", 
-                font=('Arial', 10), bg='#f0f0f0').grid(row=0, column=0, padx=10, pady=5)
-        
-        self.entry_y_buscar = tk.Entry(frame_buscar_input, font=('Arial', 10), width=15)
-        self.entry_y_buscar.grid(row=0, column=1, padx=10, pady=5)
-        
-        # Frame para mostrar valores intermedios calculados
-        frame_valores = tk.LabelFrame(self.root, text="Valores Intermedios y Cálculos", 
-                                     font=('Arial', 11, 'bold'), bg='#f0f0f0')
-        frame_valores.pack(padx=20, pady=10, fill='x')
-        
-        # Grid para los valores
-        frame_grid_valores = tk.Frame(frame_valores, bg='#f0f0f0')
-        frame_grid_valores.pack(pady=10)
-        
-        # Primera fila - Puntos Y
-        self.crear_label_valor(frame_grid_valores, "y₀:", 'y0', 0, 0, '#E3F2FD')
-        self.crear_label_valor(frame_grid_valores, "y₁:", 'y1', 0, 2, '#FFF3E0')
-        self.crear_label_valor(frame_grid_valores, "y₂:", 'y2', 0, 4, '#E8F5E9')
-        
-        # Segunda fila - Espaciamiento y diferencias
-        self.crear_label_valor(frame_grid_valores, "h = x₁ - x₀:", 'h', 1, 0, '#F3E5F5')
-        self.crear_label_valor(frame_grid_valores, "Δy₀ = y₁ - y₀:", 'delta_y0', 1, 2, '#FCE4EC')
-        self.crear_label_valor(frame_grid_valores, "Δ²y₀:", 'delta2_y0', 1, 4, '#E0F2F1')
-        
-        # Tercera fila - Diferencia Y
-        self.crear_label_valor(frame_grid_valores, "y - y₀:", 'diferencia_y', 2, 1, '#FFF9C4', ancho=15)
-        
-        # Cuarta fila - Coeficientes de ecuación cuadrática
-        tk.Label(frame_grid_valores, text="Ecuación cuadrática:", 
-                font=('Arial', 10, 'bold', 'italic'), bg='#f0f0f0').grid(row=3, column=0, columnspan=6, pady=10)
-        
-        self.crear_label_valor(frame_grid_valores, "a:", 'coef_a', 4, 0, '#E1BEE7')
-        self.crear_label_valor(frame_grid_valores, "b:", 'coef_b', 4, 2, '#F8BBD0')
-        self.crear_label_valor(frame_grid_valores, "c:", 'coef_c', 4, 4, '#B2DFDB')
-        
-        # Quinta fila - Discriminante y soluciones
-        self.crear_label_valor(frame_grid_valores, "Discriminante:", 'discriminante', 5, 1, '#FFCCBC', ancho=15)
-        
-        self.crear_label_valor(frame_grid_valores, "x₁:", 'x_sol1', 6, 0, '#C5CAE9')
-        self.crear_label_valor(frame_grid_valores, "x₂:", 'x_sol2', 6, 2, '#D1C4E9')
-        
-        # Sexta fila - Resultado final
-        tk.Label(frame_grid_valores, text="", bg='#f0f0f0').grid(row=7, column=0, pady=5)
-        self.crear_label_valor(frame_grid_valores, "x (resultado final):", 'x_resultado', 8, 1, '#C8E6C9', ancho=20)
-        
-        # Frame para botones de cálculo
-        frame_botones = tk.Frame(self.root, bg='#f0f0f0')
-        frame_botones.pack(pady=10)
+        self.entry_y_buscar = tk.Entry(frame_buscar, font=('Arial', 10), width=15)
+        self.entry_y_buscar.grid(row=0, column=1, padx=10, pady=5, sticky='ew')
+
+        # Frame para botones de cálculo (para mantenerlos agrupados)
+        frame_botones = tk.Frame(frame_resultados_cont, bg='#f0f0f0')
+        frame_botones.grid(row=1, column=0, sticky='ew', pady=(0, 10))
+        frame_botones.grid_columnconfigure(0, weight=1)
+        frame_botones.grid_columnconfigure(1, weight=1)
         
         btn_calcular = tk.Button(frame_botones, text="Calcular Interpolación\nCuadrática Inversa", 
-                              command=self.calcular_cuadratica,
-                              font=('Arial', 11, 'bold'), bg='#2196F3', 
-                              fg='white', width=25, height=2)
-        btn_calcular.grid(row=0, column=0, padx=10)
+                                 command=self.calcular_cuadratica,
+                                 font=('Arial', 10, 'bold'), bg='#2196F3', 
+                                 fg='white', padx=10, pady=5)
+        btn_calcular.grid(row=0, column=0, padx=(0, 5), sticky='ew')
         
         btn_limpiar_resultados = tk.Button(frame_botones, text="Limpiar Valores", 
-                                          command=self.limpiar_resultados,
-                                          font=('Arial', 9), bg='#607D8B', 
-                                          fg='white', width=20)
-        btn_limpiar_resultados.grid(row=0, column=1, padx=10)
-    
-    def crear_label_valor(self, parent, texto, clave, fila, columna, color, ancho=15):
-        """Crea un par de labels para mostrar nombre y valor"""
+                                            command=self.limpiar_resultados,
+                                            font=('Arial', 10), bg='#607D8B', 
+                                            fg='white', padx=10, pady=5)
+        btn_limpiar_resultados.grid(row=0, column=1, padx=(5, 0), sticky='ew')
+        
+        # Frame 3: Valores Intermedios y Cálculos (Row 3, debajo de la tabla)
+        frame_valores = tk.LabelFrame(main_frame, text="Valores Intermedios y Solución", 
+                                      font=('Arial', 11, 'bold'), bg='#f0f0f0', padx=10, pady=5)
+        frame_valores.grid(row=3, column=0, padx=5, pady=5, sticky='ew')
+        
+        # Grid para los valores (más compacto)
+        frame_grid_valores = tk.Frame(frame_valores, bg='#f0f0f0')
+        frame_grid_valores.pack(pady=5, fill='x')
+        
+        # Configurar 6 columnas de pesos 1 para distribución uniforme
+        for i in range(6):
+            frame_grid_valores.grid_columnconfigure(i, weight=1)
+        
+        # --- Fila 0: Puntos y Diferencias de Y
+        self.crear_label_valor(frame_grid_valores, "y₀:", 'y0', 0, 0, '#E3F2FD', ancho=1)
+        self.crear_label_valor(frame_grid_valores, "y₁:", 'y1', 0, 2, '#FFF3E0', ancho=1)
+        self.crear_label_valor(frame_grid_valores, "y₂:", 'y2', 0, 4, '#E8F5E9', ancho=1)
+        
+        # --- Fila 1: h y Diferencias
+        self.crear_label_valor(frame_grid_valores, "h:", 'h', 1, 0, '#F3E5F5', ancho=1)
+        self.crear_label_valor(frame_grid_valores, "Δy₀:", 'delta_y0', 1, 2, '#FCE4EC', ancho=1)
+        self.crear_label_valor(frame_grid_valores, "Δ²y₀:", 'delta2_y0', 1, 4, '#E0F2F1', ancho=1)
+        
+        # --- Fila 2: Coeficientes a y b
+        self.crear_label_valor(frame_grid_valores, "Coef. a:", 'coef_a', 2, 0, '#E1BEE7', ancho=1)
+        self.crear_label_valor(frame_grid_valores, "Coef. b:", 'coef_b', 2, 2, '#F8BBD0', ancho=1)
+        self.crear_label_valor(frame_grid_valores, "Coef. c:", 'coef_c', 2, 4, '#B2DFDB', ancho=1)
+        
+        # --- Fila 3: Discriminante y soluciones
+        tk.Label(frame_grid_valores, text="Cálculo cuadrático:", 
+                 font=('Arial', 10, 'bold', 'italic'), bg='#f0f0f0').grid(row=3, column=0, columnspan=6, pady=(10, 5))
+                 
+        self.crear_label_valor(frame_grid_valores, "Disc.:", 'discriminante', 4, 0, '#FFCCBC', ancho=1)
+        self.crear_label_valor(frame_grid_valores, "x₁:", 'x_sol1', 4, 2, '#C5CAE9', ancho=1)
+        self.crear_label_valor(frame_grid_valores, "x₂:", 'x_sol2', 4, 4, '#D1C4E9', ancho=1)
+        
+        # --- Fila 5: Resultado final
+        tk.Label(frame_grid_valores, text="", bg='#f0f0f0').grid(row=5, column=0, pady=5)
+        self.crear_label_valor(frame_grid_valores, "RESULTADO FINAL X:", 'x_resultado', 6, 1, '#C8E6C9', ancho=3, final=True)
+        
+    def crear_label_valor(self, parent, texto, clave, fila, columna, color, ancho=15, final=False):
+        """Crea un par de labels para mostrar nombre y valor con responsividad."""
+        
         # Label con el nombre
-        tk.Label(parent, text=texto, font=('Arial', 10, 'bold'), 
-                bg='#f0f0f0').grid(row=fila, column=columna, padx=5, pady=5, sticky='e')
+        font_name = ('Arial', 10, 'bold')
+        if final:
+            font_name = ('Arial', 11, 'bold', 'underline')
+        
+        # El sticky 'e' asegura que el texto se alinea a la derecha (junto al valor)
+        tk.Label(parent, text=texto, font=font_name, 
+                 bg='#f0f0f0').grid(row=fila, column=columna, padx=(5, 2), pady=3, sticky='e')
         
         # Label con el valor (inicialmente vacío)
         label_valor = tk.Label(parent, text="---", font=('Arial', 10), 
-                              bg=color, relief='sunken', width=ancho, anchor='center')
-        label_valor.grid(row=fila, column=columna+1, padx=5, pady=5)
+                              bg=color, relief='groove', width=ancho, anchor='center', padx=5, pady=2)
         
+        # Si es el resultado final, hacerlo ocupar más espacio (columnspan=3)
+        if final:
+            # Ocupa 3 columnas (columna+1 hasta columna+3)
+            label_valor.grid(row=fila, column=columna+1, padx=(2, 5), pady=3, sticky='ew', columnspan=4)
+        else:
+            # Ocupa 1 columna
+            label_valor.grid(row=fila, column=columna+1, padx=(2, 5), pady=3, sticky='ew')
+             
         self.labels_valores[clave] = label_valor
     
     def actualizar_labels_valores(self, datos):
         """Actualiza los labels con los valores calculados"""
-        self.labels_valores['y0'].config(text=f"{datos['y0']:.6f}")
-        self.labels_valores['y1'].config(text=f"{datos['y1']:.6f}")
-        self.labels_valores['y2'].config(text=f"{datos['y2']:.6f}")
-        self.labels_valores['h'].config(text=f"{datos['h']:.6f}")
-        self.labels_valores['delta_y0'].config(text=f"{datos['delta_y0']:.6f}")
-        self.labels_valores['delta2_y0'].config(text=f"{datos['delta2_y0']:.6f}")
-        self.labels_valores['diferencia_y'].config(text=f"{datos['diferencia_y']:.6f}")
-        self.labels_valores['coef_a'].config(text=f"{datos['coef_a']:.8f}")
-        self.labels_valores['coef_b'].config(text=f"{datos['coef_b']:.8f}")
-        self.labels_valores['coef_c'].config(text=f"{datos['coef_c']:.8f}")
-        self.labels_valores['discriminante'].config(text=f"{datos['discriminante']:.8f}")
-        self.labels_valores['x_sol1'].config(text=f"{datos['x_sol1']:.8f}")
-        self.labels_valores['x_sol2'].config(text=f"{datos['x_sol2']:.8f}")
+        def format_val(val):
+            return f"{val:.6f}" if not math.isnan(val) else "N/A"
+        
+        def format_coef(val):
+            return f"{val:.8f}" if not math.isnan(val) else "N/A"
+
+        self.labels_valores['y0'].config(text=format_val(datos['y0']))
+        self.labels_valores['y1'].config(text=format_val(datos['y1']))
+        self.labels_valores['y2'].config(text=format_val(datos['y2']))
+        self.labels_valores['h'].config(text=format_val(datos['h']))
+        self.labels_valores['delta_y0'].config(text=format_val(datos['delta_y0']))
+        self.labels_valores['delta2_y0'].config(text=format_val(datos['delta2_y0']))
+        self.labels_valores['coef_a'].config(text=format_coef(datos['coef_a']))
+        self.labels_valores['coef_b'].config(text=format_coef(datos['coef_b']))
+        self.labels_valores['coef_c'].config(text=format_coef(datos['coef_c']))
+        self.labels_valores['discriminante'].config(text=format_coef(datos['discriminante']))
+        
+        # Manejo de NaN para las soluciones y resultado final
+        x_sol1_str = format_coef(datos['x_sol1'])
+        x_sol2_str = format_coef(datos['x_sol2'])
+        x_res_str = format_coef(datos['x_resultado'])
+
+        self.labels_valores['x_sol1'].config(text=x_sol1_str)
+        self.labels_valores['x_sol2'].config(text=x_sol2_str)
+        
         self.labels_valores['x_resultado'].config(
-            text=f"{datos['x_resultado']:.8f}",
+            text=x_res_str,
             font=('Arial', 11, 'bold'),
             fg='#1B5E20'
         )
     
     def limpiar_labels_valores(self):
         """Limpia los labels de valores intermedios"""
-        for label in self.labels_valores.values():
-            label.config(text="---")
-    
+        for clave, label in self.labels_valores.items():
+            is_final = clave == 'x_resultado'
+            label.config(text="---", font=('Arial', 10), fg='black' if not is_final else '#1B5E20')
+            
     def agregar_punto(self):
         try:
             x = float(self.entry_x.get())
             y = float(self.entry_y_dato.get())
             
-            self.x_vals.append(x)
-            self.y_vals.append(y)
+            # Buscar si ya existe un punto con el mismo X
+            if x in self.x_vals:
+                 messagebox.showwarning("Advertencia", f"El valor X={x} ya existe. Se reemplazará el valor Y asociado.")
+                 idx = self.x_vals.index(x)
+                 self.y_vals[idx] = y
+            else:
+                self.x_vals.append(x)
+                self.y_vals.append(y)
+            
+            # Ordenar por X para asegurar la contigüidad
+            try:
+                self.x_vals, self.y_vals = zip(*sorted(zip(self.x_vals, self.y_vals)))
+                self.x_vals = list(self.x_vals)
+                self.y_vals = list(self.y_vals)
+            except:
+                # Caso extremo con pocos datos, no debería fallar.
+                pass 
             
             self.actualizar_tabla()
             
@@ -396,10 +523,12 @@ class InterpolacionInversa:
         seleccion = self.tree.selection()
         if seleccion:
             item = self.tree.item(seleccion[0])
-            index = int(item['values'][0]) - 1
+            # El índice visual es 1-basado. El índice real es 0-basado.
+            index_visual = int(item['values'][0]) - 1 
             
-            del self.x_vals[index]
-            del self.y_vals[index]
+            # Eliminar del índice real
+            del self.x_vals[index_visual]
+            del self.y_vals[index_visual]
             
             self.actualizar_tabla()
         else:
@@ -410,7 +539,7 @@ class InterpolacionInversa:
         for item in self.tree.get_children():
             self.tree.delete(item)
         
-        # Agregar datos
+        # Agregar datos (ya ordenados)
         for i, (x, y) in enumerate(zip(self.x_vals, self.y_vals)):
             self.tree.insert('', 'end', values=(i+1, f"{x:.6f}", f"{y:.6f}"))
     
@@ -421,8 +550,9 @@ class InterpolacionInversa:
         self.actualizar_tabla()
         self.entry_y_buscar.delete(0, tk.END)
         self.entry_y_buscar.insert(0, "1.400")
+        self.limpiar_labels_valores()
         messagebox.showinfo("Ejemplo Cargado", 
-                           "Se ha cargado un ejemplo de datos para interpolación cuadrática")
+                            "Se ha cargado un ejemplo de datos para interpolación cuadrática (y=1.400).")
     
     def limpiar_datos(self):
         self.x_vals.clear()
@@ -440,23 +570,33 @@ class InterpolacionInversa:
         """Valida que haya suficientes datos ingresados para interpolación cuadrática"""
         if len(self.x_vals) < 3:
             messagebox.showerror("Error", 
-                               "Se necesitan al menos 3 puntos para interpolación cuadrática")
+                                 "Se necesitan al menos 3 puntos para interpolación cuadrática")
             return False
+        
+        try:
+            float(self.entry_y_buscar.get())
+        except ValueError:
+            messagebox.showerror("Error", "Por favor ingrese un valor numérico válido para Y buscado.")
+            return False
+            
         return True
     
     def calcular_cuadratica(self):
         """Calcula la interpolación cuadrática inversa"""
+        self.limpiar_resultados()
+        
         if not self.validar_datos():
             return
         
         try:
             y_buscado = float(self.entry_y_buscar.get())
             
+            # Advertencia de Extrapolación
             y_min, y_max = min(self.y_vals), max(self.y_vals)
             if y_buscado < y_min or y_buscado > y_max:
                 messagebox.showwarning("Advertencia", 
-                    f"El valor está fuera del rango de datos disponibles.\n"
-                    f"Rango Y: [{y_min:.6f}, {y_max:.6f}]\n"
+                    f"El valor buscado (Y={y_buscado:.6f}) está fuera del rango de datos disponibles.\n"
+                    f"Rango Y: [{y_min:.6f}, {y_max:.6f}].\n"
                     f"La extrapolación puede no ser precisa.")
             
             # Usar la lógica del algoritmo de interpolación cuadrática
@@ -467,10 +607,29 @@ class InterpolacionInversa:
             # Actualizar los labels con los valores calculados
             self.actualizar_labels_valores(datos)
             
-        except ValueError as e:
+            # Muestra reporte en una ventana aparte
+            reporte = AlgoritmoInterpolacion.generar_reporte(datos)
+            self.mostrar_reporte(reporte)
+            
+        except Exception as e:
             messagebox.showerror("Error", f"Error en el cálculo: {str(e)}")
-        except ZeroDivisionError as e:
-            messagebox.showerror("Error", str(e))
+
+    def mostrar_reporte(self, reporte):
+        """Muestra el reporte de cálculo en una nueva ventana con ScrolledText."""
+        reporte_window = tk.Toplevel(self.root)
+        reporte_window.title("Reporte de Cálculo Paso a Paso")
+        reporte_window.geometry("650x450")
+        reporte_window.grab_set() # Bloquea la ventana principal
+        
+        st = scrolledtext.ScrolledText(reporte_window, wrap=tk.WORD, font=('Courier New', 10))
+        st.insert(tk.INSERT, reporte)
+        st.config(state=tk.DISABLED) # Hacerlo de solo lectura
+        st.pack(expand=True, fill='both', padx=10, pady=10)
+        
+        # Botón para cerrar
+        btn_cerrar = tk.Button(reporte_window, text="Cerrar", command=reporte_window.destroy,
+                               font=('Arial', 10, 'bold'), bg='#607D8B', fg='white')
+        btn_cerrar.pack(pady=(0, 10))
 
 if __name__ == "__main__":
     root = tk.Tk()
