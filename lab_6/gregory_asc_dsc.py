@@ -1,12 +1,5 @@
-"""
-Aplicación para calcular derivadas usando fórmulas de Newton-Gregory
-Ascendente y Descendente con diferencias finitas.
-Implementación usando solo funciones (sin clases).
-"""
-
 import math
 from typing import List, Tuple, Callable, Optional
-
 
 # ============================================================================
 # MÓDULO DE LÓGICA: Cálculos de diferencias finitas y derivadas
