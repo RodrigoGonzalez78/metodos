@@ -6,28 +6,17 @@ def imprimir_matriz(matriz, titulo=""):
         print(f"\n{titulo}")
     filas, cols = matriz.shape
     for i in range(filas):
+        # Imprime la parte de coeficientes
         for j in range(cols - 1):
-            print(f"{matriz[i][j]:8.2f}", end=" ")
-        print(f"| {matriz[i][cols-1]:8.2f}")
-    print()
-
-def imprimir_matriz_con_columnas(matriz, columnas_mostrar, titulo=""):
-    """Imprime la matriz mostrando solo las columnas especificadas"""
-    if titulo:
-        print(f"\n{titulo}")
-    filas, cols = matriz.shape
-    for i in range(filas):
-        for j in columnas_mostrar:
-            if j < cols - 1:
-                print(f"{matriz[i][j]:8.2f}", end=" ")
-            else:
-                print(f"| {matriz[i][j]:8.2f}", end="")
-        print()
+            print(f"{matriz[i][j]:10.4f}", end=" ")
+        # Imprime la parte de términos independientes
+        print(f"| {matriz[i][cols-1]:10.4f}")
     print()
 
 def gauss_jordan(matriz_ampliada):
     """
-    Aplica el método de Gauss-Jordan a una matriz ampliada.
+    Aplica el método de Gauss-Jordan a una matriz ampliada para encontrar
+    la forma escalonada reducida por filas (RREF).
     
     Parámetros:
     matriz_ampliada: numpy array de dimensión n x (n+1)
@@ -40,76 +29,64 @@ def gauss_jordan(matriz_ampliada):
     n = A.shape[0]
     
     print("="*60)
-    print("MÉTODO DE GAUSS-JORDAN")
+    print("MÉTODO DE GAUSS-JORDAN (CORREGIDO)")
     print("="*60)
     imprimir_matriz(A, "Matriz ampliada inicial:")
     
-    iteracion = 1
-    
-    # Para cada columna (excepto la última que es el vector de términos independientes)
-    for col in range(n):
-        print(f"\n{'='*60}")
-        print(f"ITERACIÓN {iteracion}: Eliminando columna {col + 1}")
-        print(f"{'='*60}")
+    # Iterar por cada fila (que actuará como pivote)
+    for i in range(n):
         
-        # Elemento pivote (primera fila, columna actual)
-        pivote = A[0, col]
+        # --- 1. Pivoteo (Para estabilidad numérica) ---
+        # Buscar el máximo en la columna actual (desde la fila i)
+        max_row = i
+        for k in range(i + 1, n):
+            if abs(A[k, i]) > abs(A[max_row, i]):
+                max_row = k
         
+        # Intercambiar la fila actual (i) con la fila del máximo (max_row)
+        if max_row != i:
+            A[[i, max_row]] = A[[max_row, i]]
+            print(f"\n-> INTERCAMBIO: Fila {i+1} <-> Fila {max_row+1}")
+            imprimir_matriz(A)
+
+        # --- 2. Normalización (Hacer que el pivote A[i, i] sea 1) ---
+        pivote = A[i, i]
         if abs(pivote) < 1e-10:
-            print(f"Advertencia: Pivote muy pequeño en columna {col + 1}")
-            continue
-        
-        print(f"\nPivote: a[1,{col+1}] = {pivote:.4f}")
-        print(f"\nOperaciones para eliminar columna {col + 1}:")
-        
-        # Para cada fila (excepto la primera)
-        for fila in range(1, n - col):
-            factor = A[fila, col] / pivote
-            print(f"\n  Fila {fila + 1}:")
+            print("Error: La matriz es singular, el sistema no tiene solución única.")
+            return None # No se puede dividir por cero
             
-            # Mostrar las operaciones elemento por elemento
-            for j in range(col + 1, n + 1):
-                valor_original = A[fila, j]
-                valor_primera_fila = A[0, j]
-                if j < n:
-                    print(f"    a[{fila+1},{j+1}] = {valor_original:.2f} - {valor_primera_fila:.2f} * {A[fila, col]:.2f}/{pivote:.2f}", end="")
-                else:
-                    print(f"    b[{fila+1}] = {valor_original:.3f} - {valor_primera_fila:.3f} * {A[fila, col]:.2f}/{pivote:.2f}", end="")
+        # Dividir toda la fila del pivote por el valor del pivote
+        A[i, :] = A[i, :] / pivote
+        print(f"\n-> NORMALIZACIÓN: Fila {i+1} = Fila {i+1} / {pivote:.4f}")
+        imprimir_matriz(A)
+        
+        # --- 3. Eliminación (Hacer ceros arriba y abajo del pivote) ---
+        # Iterar por todas las demás filas (k)
+        for k in range(n):
+            if k == i:
+                continue # Omitir la fila pivote
                 
-                # Actualizar el elemento
-                A[fila, j] = A[fila, j] - A[0, j] * factor
-                print(f" = {A[fila, j]:.2f}")
+            # Factor por el que multiplicar la fila pivote
+            factor = A[k, i]
+            
+            if abs(factor) > 1e-10: # Si no es ya cero
+                # Restar (factor * fila_pivote) a la fila k
+                A[k, :] = A[k, :] - factor * A[i, :]
+                print(f"\n-> ELIMINACIÓN: Fila {k+1} = Fila {k+1} - ({factor:.4f}) * Fila {i+1}")
         
-        # Dividir la primera fila por el pivote
-        print(f"\n  Normalizando primera fila (dividiendo por {pivote:.4f}):")
-        for j in range(col + 1, n + 1):
-            valor_original = A[0, j]
-            A[0, j] = A[0, j] / pivote
-            if j < n:
-                print(f"    a[1,{j+1}] = {valor_original:.2f}/{pivote:.2f} = {A[0, j]:.4f}")
-            else:
-                print(f"    b[1] = {valor_original:.3f}/{pivote:.2f} = {A[0, j]:.4f}")
-        
-        # Mostrar matriz con columna eliminada (no se muestra la columna col)
-        columnas_restantes = list(range(col + 1, n + 1))
-        print(f"\nMatriz con columna {col + 1} eliminada:")
-        imprimir_matriz_con_columnas(A, columnas_restantes, "")
-        
-        # Mover la primera fila al final
-        primera_fila = A[0].copy()
-        A = np.vstack([A[1:], primera_fila])
-        
-        print(f"Matriz después de mover la primera fila al final:")
-        imprimir_matriz_con_columnas(A, columnas_restantes, "")
-        
-        iteracion += 1
+        imprimir_matriz(A, f"Matriz después de procesar Columna {i+1}:")
+
+    # Al final del bucle, la matriz de coeficientes (izquierda)
+    # debe ser la matriz identidad.
+    # La última columna (derecha) contendrá las soluciones.
     
-    # Extraer soluciones (última columna)
     soluciones = A[:, -1]
     
     print("\n" + "="*60)
     print("SOLUCIÓN DEL SISTEMA")
     print("="*60)
+    print("La matriz de coeficientes es ahora la Identidad.")
+    print("La última columna contiene la solución:")
     for i, sol in enumerate(soluciones):
         print(f"x{i + 1} = {sol:.4f}")
     
@@ -157,6 +134,8 @@ def verificar_solucion(matriz_original, soluciones):
         print(f"\nEcuación {i + 1}:")
         print(f"  {' + '.join(terminos)}")
         print(f"  = {suma:.4f} ≈ {matriz_original[i, -1]:.4f}")
+        diferencia = abs(suma - matriz_original[i, -1])
+        print(f"  (Diferencia: {diferencia:.6f})")
 
 # Programa principal
 if __name__ == "__main__":
@@ -168,7 +147,7 @@ if __name__ == "__main__":
     opcion = input("\n¿Desea usar el ejemplo del documento? (s/n): ").lower()
     
     if opcion == 's':
-        # Ejemplo del documento
+        # Ejemplo del documento (el que tenías en tu código)
         matriz_ejemplo = np.array([
             [18.72, 8.2, 8.76, 121.280],
             [6.4, 15.9, 7.18, 126.321],
@@ -177,11 +156,14 @@ if __name__ == "__main__":
         matriz_original = matriz_ejemplo.copy()
         soluciones = gauss_jordan(matriz_ejemplo)
     else:
+        # Ingresar la matriz de la imagen (4.3, 3, 2, 960...)
         matriz = ingresar_matriz()
         matriz_original = matriz.copy()
         soluciones = gauss_jordan(matriz)
     
-    verificar_solucion(matriz_original, soluciones)
+    # Solo verificar si se encontró una solución
+    if soluciones is not None:
+        verificar_solucion(matriz_original, soluciones)
     
     print("\n" + "="*60)
     print("Proceso completado")
