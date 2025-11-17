@@ -22,14 +22,7 @@ def calcular_diferencias_finitas(y):
     numpy.ndarray
         Matriz donde tabla[i][j] contiene la j-ésima diferencia finita
         comenzando en el punto i
-    
-    Ejemplo:
-    --------
-    Si y = [1, 8, 27, 64], la tabla será:
-    [[ 1,  7, 12,  6],
-     [ 8, 19, 18,  0],
-     [27, 37,  0,  0],
-     [64,  0,  0,  0]]
+
     """
     n = len(y)
     # Crear matriz para almacenar todas las diferencias
@@ -60,9 +53,6 @@ def factorial(n):
     int
         n! = n × (n-1) × (n-2) × ... × 2 × 1
     
-    Ejemplo:
-    --------
-    factorial(5) = 5 × 4 × 3 × 2 × 1 = 120
     """
     if n <= 1:
         return 1
@@ -90,10 +80,6 @@ def coeficiente_binomial_generalizado(u, n):
     float
         Valor del coeficiente binomial generalizado
     
-    Ejemplo:
-    --------
-    Si u = 0.5 y n = 2:
-    C(0.5, 2) = 0.5(0.5-1)/2! = 0.5(-0.5)/2 = -0.125
     """
     if n == 0:
         return 1
@@ -138,12 +124,6 @@ def interpolar_newton_gregory(x, y, x_interpolar):
         - 'h': espaciamiento entre puntos
         - 'terminos': lista de tuplas (coeficiente, diferencia, valor_termino)
     
-    Ejemplo:
-    --------
-    x = [1, 2, 3, 4]
-    y = [1, 8, 27, 64]
-    resultado = interpolar_newton_gregory(x, y, 2.5)
-    # resultado['valor'] ≈ 15.625
     """
     n = len(x)
     

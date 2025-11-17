@@ -345,14 +345,14 @@ def mostrar_pasos_detallados_milne(detalles: List[dict], f_values: List[float],
         
         # Predictor
         print("  PREDICTOR:")
-        print(f"  y_p = y({paso_abs-3}) + (4h/3)*[2*f({paso_abs}) - f({paso_abs-1}) + 2*f({paso_abs-2})]")
+        print(f"  y_p = y({paso_abs-4}) + (4h/3)*[2*f({paso_abs-1}) - f({paso_abs-2}) + 2*f({paso_abs-3})]")
         print(f"  y_p = {det['y_predicho']:.12f}")
         print(f"  f(x, y_p) = {det['f_predicho']:.12f}")
         print()
         
         # Corrector
         print("  CORRECTOR:")
-        print(f"  y_c = y({paso_abs-1}) + (h/3)*[f_p + 4*f({paso_abs}) + f({paso_abs-1})]")
+        print(f"  y_c = y({paso_abs-2}) + (h/3)*[f(x_nuevo, y_p) + 4*f({paso_abs-1}) + f({paso_abs-2})]")
         print(f"  Iteraciones: {det['iteraciones']}")
         print(f"  y_c = {det['y_corregido']:.12f}")
         print(f"  f(x, y_c) = {det['f_corregido']:.12f}")
@@ -428,7 +428,7 @@ def main():
         if h == 0:
             h = (xf - x0) / n
         else:
-            n = int((xf - x0) / h)
+            n = int(round((xf - x0) / h))
         
         # Verificar que se puedan calcular al menos algunos pasos con Milne
         if n < 4:
@@ -454,7 +454,7 @@ def main():
             mostrar_valores_iniciales(x_inicial, y_inicial)
             
             # Preguntar si continuar con Milne
-            if n > 4:
+            if n > 3:
                 if not leer_si_no("\n¿Continuar con Método de Milne? (s/n): "):
                     input("\nPresione Enter para continuar...")
                     continue
